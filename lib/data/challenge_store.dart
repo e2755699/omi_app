@@ -176,6 +176,10 @@ class ChallengeStore extends ChangeNotifier {
     await _prefs.remove(_profileKey);
     await _prefs.remove(_logKey);
     await _prefs.remove(_cheersKey);
+    // 實體獎章的申請、願望撲滿也一起清掉。
+    for (final key in _prefs.getKeys().where((key) => key.startsWith('badges.') || key.startsWith('wishes.'))) {
+      await _prefs.remove(key);
+    }
   }
 
   /// 重新讀一次本機資料：桌面小工具會在背景直接打卡，回到 App 時要同步。
