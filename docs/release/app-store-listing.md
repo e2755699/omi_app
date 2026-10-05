@@ -22,7 +22,7 @@
 - `ITSAppUsesNonExemptEncryption = false`（Info.plist）：App 沒有網路連線、沒用加密，每個 build 不用再手動回答出口合規。之後加後端（HTTPS）仍屬豁免，但要重新確認。
 - `ios/Runner/PrivacyInfo.xcprivacy`：宣告使用 UserDefaults（理由 CA92.1，只存 App 自己的資料），不追蹤、不收集資料。
 - 主畫面名稱 `Omi`（和 Android 一致）。
-- 2026-04-28 起必須用 Xcode 26 / iOS 26 SDK 打包：Codemagic 用 `xcode: latest`。
+- 2026-04-28 起必須用 Xcode 26 / iOS 26 SDK 打包：Codemagic 固定 `xcode: '26.6'`（和黃絲帶相同）。
 
 ## 商店資料草稿（繁體中文）
 

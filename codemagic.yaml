@@ -22,7 +22,7 @@ workflows:
       vars:
         GITHUB_REPO: e2755699/omi_app
       flutter: 3.47.5
-      xcode: latest
+      xcode: '26.6'  # 和黃絲帶一致，確定可用；要升級時兩邊一起改
       cocoapods: default
     scripts:
       - name: 預檢（API 授權、Bundle ID、App、內測群組、版本、build 號）
