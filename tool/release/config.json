@@ -1,6 +1,9 @@
 {
-  "bundle_id": "com.omi.omiApp",
+  "bundle_id": "com.jacklope.omiApp",
   "bundle_name": "Omi",
   "beta_group": "Omi Internal",
+  "external_group": "Omi 夥伴",
+  "beta_locale": "zh-Hant",
+  "what_to_test": "這是 Demo 版：隊友是示範資料，你的紀錄只存在這台手機。\n請試試：跟著教學完成設定 → 首頁看各項能量槽 → 每日打卡按鍵帽、寫下今天的 Reflect → 幫隊友集氣加油或慶祝。\n有任何想法或卡住的地方，請在 TestFlight 裡截圖回饋。",
   "github_repo": "e2755699/omi_app"
 }

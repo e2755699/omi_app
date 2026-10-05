@@ -54,6 +54,7 @@ app.*.map.json
 *.cer
 *_private_key*
 release-result.json
+external-events.json
 final-status.txt
 __pycache__/
 

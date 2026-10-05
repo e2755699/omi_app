@@ -1,0 +1,50 @@
+# 每小時看一次最近送 Beta 審查的 build：通過、被拒、或超過 72 小時沒結果，就在「📦 iOS 發布通知」issue 留言。
+# 同一個結果只留一次（留言裡有去重標記）；沒有送審中的 build 時幾秒就結束。
+# 公開連結不會貼出來（這是公開 repo），請到 App Store Connect → TestFlight → 外部測試群組拿。
+name: TestFlight external review watch
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: testflight-external-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r tool/release/requirements.txt
+
+      - name: 查外部測試審查結果
+        id: watch
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
+            echo "還沒設定 App Store Connect secrets，略過"
+            exit 0
+          fi
+          python tool/release/asc.py external-watch --max-age-hours 72 --out external-events.json
+
+      - name: 通知
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tool/release/report.py --external-events external-events.json

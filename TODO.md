@@ -31,10 +31,12 @@
 ## iOS 上架（見 docs/release/）
 
 - [x] Codemagic → TestFlight 管線、上傳後自動查驗＋通知（已配置，待第一次實跑）
-- [ ] 帳號設定：App Store Connect API key、Codemagic 變數群組、GitHub token／secrets、建 App、內部群組
-- [ ] 確定 Bundle ID（永久，建 App 之前）
+- [ ] 秘密：Codemagic 變數群組、GitHub token／Actions secrets（沿用黃絲帶的 API key 與簽章私鑰，擁有者本人放）
+- [x] Bundle ID `com.jacklope.omiApp`、App Store Connect App、內部群組、Codemagic App（2026-10-06）
+- [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（已配置，待實跑）
+- [ ] TestFlight 測試資訊：回饋信箱、審查聯絡人（擁有者本人填）
 - [ ] 正式版拿掉 Demo 內容、挑戰日期不要寫死（審查指南 2.2）
-- [ ] 隱私權政策頁、支援頁（需要聯絡信箱）
+- [ ] 支援頁（隱私權政策頁已完成）
 - [ ] 價格／付費協議／歐盟 DSA、要不要支援 iPad
 - [ ] 截圖（iPhone 6.9 吋，支援 iPad 的話加 13 吋）
 - [ ] 送審（擁有者確認後）

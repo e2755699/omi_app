@@ -10,10 +10,12 @@
 | 1 | **Demo 內容** | 審查指南 2.2：demo／beta／試用版不能上 App Store，要用 TestFlight。現在畫面有 `DEMO` 標籤、示範隊友、預設跳到第 30 天、「＊這是 Demo」說明 | 正式版要拿掉 Demo 標示與假隊友（或等後端做好真的隊友），預設日期改用今天 |
 | 2 | **挑戰日期寫死** | `lib/models/challenge.dart` 固定 2026-10-09 → 2027-01-16；之後下載的人只會看到「挑戰完成」，也容易被認為功能不完整（4.2） | 改成自己選開始日，或只給社群用 → 考慮「不公開上架（Unlisted）」：只有拿到連結的人能下載，一樣要審查 |
 | 3 | **App 圖示** | 目前是 Flutter 預設圖示 | 做像素風圖示（TODO 已列），1024×1024、不透明 |
-| 4 | **隱私權政策網址、支援網址** | 所有 App 必填 | 需要聯絡信箱與放網頁的地方（可放 GitHub Pages：`/privacy/`、`/support/`；Demo 下架時要保留這兩頁） |
+| 4 | **支援網址**（隱私權政策已完成） | 所有 App 必填 | 隱私權政策：`web/privacy/` → https://e2755699.github.io/omi_app/privacy/（聯絡方式暫用 GitHub Issues）。還缺支援頁。Demo 下架時要保留這些頁面 |
 | 5 | **價格與協議** | 要收費須先簽「付費 App 協議」並完成銀行、稅務資料；在歐盟上架要申報 DSA 交易者身分（交易者會公開地址、電話、信箱） | 免費或收費？價格？要不要上歐盟？ |
 | 6 | **iPad** | 專案目前支援 iPhone＋iPad → 需要 13 吋 iPad 截圖；上架後一般不能再移除 iPad 支援 | 要不要支援 iPad？不要的話首次上架前改成只支援 iPhone |
-| 7 | **Bundle ID** | 第一次建 App 後就**永遠不能改** | 目前是 Flutter 預設的 `com.omi.omiApp`，建議改成自己的網域或名字開頭（見最後「待確認」） |
+| 7 | ~~Bundle ID~~ | ✅ 已定案 `com.jacklope.omiApp`，App 已建立（2026-10-06） | — |
+
+第 1、2 項只擋 App Store 正式上架；TestFlight 外部測試本來就是 demo 的正確管道，審查備註已說明（見下方「TestFlight 測試資訊」）。
 
 ## 已經處理好的（在 repo 內）
 
@@ -89,13 +91,40 @@ Omi 是一個 100 天的好習慣挑戰。五個面向，每天一點點：
 
 CI **不會**自動做第 2–4 步。
 
-## TestFlight 外部測試（選用）
+## TestFlight 外部測試（擁有者 2026-10-06 已要求）
 
-想讓 Discord 夥伴在正式上架前先用：TestFlight → 外部測試 → 建群組 → 公開連結。第一個 build 要經 Beta App Review（通常 1 天內），需要填測試說明與回饋信箱。這等於對外發布，要擁有者確認。
+CI 會在內測可用後自動送外部測試（群組「Omi 夥伴」，開公開連結）。第一個 build 要經 Beta App Review（通常數小時到一天），之後同版本的新 build 通常較快。公開連結在 App Store Connect → TestFlight → 外部測試群組，不貼在公開 repo；要發給 Discord 夥伴時由擁有者貼。
+
+### TestFlight 測試資訊（App Store Connect → TestFlight → 測試資訊）
+
+**Beta 版 App 描述**（測試者看得到）：
+```
+Omi～快樂的 Σίσυφος 是一個 100 天好習慣挑戰 App：運動、飲食、閱讀、睡眠、反思五個面向，每天按下鍵帽打卡，看能量槽一點一點充滿，也能幫隊友集氣加油。
+
+目前是 Demo 測試版：隊友是示範資料，你的紀錄只存在自己的手機。歡迎試用，並在 TestFlight 裡截圖回饋想法。
+```
+
+**隱私權政策 URL**：`https://e2755699.github.io/omi_app/privacy/`
+
+**審查備註**（給 Apple 審查員；照擁有者要求說明目前是 demo、正式上架前會完整做出來）：
+```
+This build is a demo of our community's 100-day habit challenge app, distributed through TestFlight to collect feedback from participants before we build the full product.
+
+- No login or account is required, and the app works fully offline. All data stays on the device.
+- The teammates shown in the app are built-in sample data; the app labels this clearly as DEMO.
+- Before any public App Store release we will complete the full app, including the backend and architecture that sync real teammates' progress, and update the privacy policy accordingly.
+
+How to test: on first launch, follow the setup tutorial (about 1 minute). Then tap "每日打卡" (Daily check-in) on the home screen and press the keycap buttons to check in.
+
+（中文）這是社群 100 天好習慣挑戰的 Demo 測試版，透過 TestFlight 先收集參與者回饋。不需登入、可離線使用，資料只存在裝置上；App 中的隊友是內建示範資料（App 內標示 DEMO）。正式上架 App Store 前，我們會把 App 完整做出來，包含同步真實隊友進度的後端與架構，並同步更新隱私權政策。
+```
+
+**需要登入**：不勾。
+
+**擁有者本人填**：意見回饋電子郵件地址、審查聯絡人（姓、名、電話、電子郵件）。
 
 ## 待確認
 
-- Bundle ID（永久）：例如 `io.github.e2755699.omi`、`tw.<你的名字>.omi`
 - 免費或收費、價格、上架國家（含不含歐盟）
 - 支援／聯絡信箱（會公開在支援頁和隱私權政策）
 - 要不要支援 iPad

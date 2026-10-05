@@ -39,6 +39,38 @@ PHASE_TEXT = {
 }
 
 
+EXTERNAL_TEXT = {
+    "submitted": "已送 Beta 審查，結果出來會再通知（通常數小時到一天）",
+    "ready": "外部測試可用",
+    "failed": "Beta 審查未通過",
+    "blocked": "沒有送出：多半是 TestFlight 測試資訊沒填齊",
+    "unknown": "無法確認",
+}
+
+
+def compose_external(env: dict, event: dict) -> tuple[str, str]:
+    """外部測試審查結果的留言（排程查到結果時用）。不貼公開連結：這是公開 repo。"""
+    label = f"{event.get('version', '?')} ({event.get('build_number', '?')})"
+    status = event.get("status")
+    title = {
+        "ready": f"🎉 外部測試可用：{label}——拿公開連結的人現在可以安裝了",
+        "failed": f"❌ Beta 審查未通過：{label}",
+    }.get(status, f"❓ Beta 審查超過期限仍沒有結果：{label}")
+    repo = env.get("GITHUB_REPOSITORY", "")
+    run_url = f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo}/actions/runs/{env.get('GITHUB_RUN_ID', '')}"
+    key = f"{event.get('version')}+{event.get('build_number')}:external:{status}"
+    owner = env.get("GITHUB_REPOSITORY_OWNER", "")
+    lines = [
+        f"### {title}", "", "| 項目 | 內容 |", "| --- | --- |",
+        f"| 版本 (build) | {label} |",
+        f"| Apple 狀態 | `{event.get('state')}` |",
+        "| 公開連結 | App Store Connect → TestFlight → 外部測試群組（不貼在公開 repo） |",
+        f"| 查驗紀錄 | {run_url} |",
+        "", f"@{owner}" if owner else "", f"<!-- ios-release-report key={key} -->",
+    ]
+    return key, "\n".join(lines).strip() + "\n"
+
+
 def final_status(outcome: str, result: dict | None) -> str:
     """整體結果：ready / failed / unknown。成功只能來自 Apple API 查驗。"""
     if result:
@@ -84,6 +116,9 @@ def compose(env: dict, result: dict | None) -> tuple[str, str]:
         details = result.get("details") or {}
         if details:
             rows.append(("細節", "`" + json.dumps(details, ensure_ascii=False) + "`"))
+        if external := result.get("external"):
+            rows.append(("外部測試", EXTERNAL_TEXT.get(external.get("status"), external.get("status", ""))
+                         + (f"（`{external['error']}`）" if external.get("error") else "")))
         rows.append(("查驗時間 (UTC)", result.get("checked_at", "")))
 
     key = f"{version}+{build}:{outcome}:{status}"
@@ -134,14 +169,34 @@ class GitHub:
         return any(marker in (c.get("body") or "") for c in comments or [])
 
 
+def post_external_events(env: dict, path: Path, dry_run: bool) -> int:
+    events = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    if not events:
+        print("沒有新的外部測試審查結果")
+        return 0
+    github = None if dry_run else GitHub(env["GITHUB_TOKEN"], env["GITHUB_REPOSITORY"])
+    number = github.notification_issue() if github else 0
+    for event in events:
+        key, body = compose_external(env, event)
+        print(body)
+        if github is None or github.already_posted(number, key):
+            continue
+        github.call("POST", f"/issues/{number}/comments", {"body": body})
+        print(f"已留言到 issue #{number}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--result-file", default="release-result.json")
     parser.add_argument("--status-file", help="把整體結果（ready/failed/unknown）寫到這裡")
+    parser.add_argument("--external-events", help="external-watch 的事件 JSON：每個事件各留一則（已留過的略過）")
     parser.add_argument("--dry-run", action="store_true", help="只印出留言，不呼叫 GitHub")
     args = parser.parse_args(argv)
 
     env = dict(os.environ)
+    if args.external_events:
+        return post_external_events(env, Path(args.external_events), args.dry_run)
     for name, pattern in (("VERSION", r"[0-9]+\.[0-9]+\.[0-9]+"), ("BUILD_NUMBER", r"[0-9]+"),
                           ("SOURCE_COMMIT", r"[0-9a-f]{7,40}")):
         if env.get(name) and not re.fullmatch(pattern, env[name]):

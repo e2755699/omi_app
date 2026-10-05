@@ -5,9 +5,12 @@ API key 從環境變數讀（和 Codemagic CLI 同名），不會印出秘密：
   APP_STORE_CONNECT_ISSUER_ID / APP_STORE_CONNECT_KEY_IDENTIFIER / APP_STORE_CONNECT_PRIVATE_KEY
 
   python tool/release/asc.py preflight --min-build-number "$BUILD_NUMBER" --env-file "$CM_ENV"
-  python tool/release/asc.py verify --version 1.0.0 --build-number 7 --out release-result.json
+  python tool/release/asc.py verify --version 1.0.0 --build-number 7 --external --out release-result.json
+  python tool/release/asc.py external-watch --out external-events.json
 
 verify 的結束碼：0 = ready（內測可用）、1 = failed（Apple 明確拒絕）、2 = unknown（無法確認）。
+--external：內測可用後再送外部測試（結果放在 result["external"]，不影響內測的結束碼）。
+external-watch：排程用，列出外部審查有結果或逾時的 build，交給 report.py 通知。
 """
 
 from __future__ import annotations
@@ -123,6 +126,9 @@ class AscClient:
     def post(self, path: str, body: dict) -> dict:
         return self.request("POST", path, body=body)
 
+    def patch(self, path: str, body: dict) -> dict:
+        return self.request("PATCH", path, body=body)
+
 
 def _error_detail(error: urllib.error.HTTPError) -> str:
     try:
@@ -165,6 +171,97 @@ def latest_build_number(client, app_id: str) -> int:
 def next_build_number(latest: int, ci_floor: int) -> int:
     """Apple 上最大的 build 號 +1，且不小於 CI 自己的流水號（同一條 workflow 不會重複）。"""
     return max(latest + 1, ci_floor)
+
+
+# ---------------------------------------------------------------- 外部測試
+
+
+def ensure_external_group(client, app_id: str, name: str) -> tuple[dict, bool]:
+    """找外部群組，沒有就建一個（開公開連結）。回傳（群組, 是否新建）。"""
+    group = find_beta_group(client, app_id, name)
+    if group:
+        return group, False
+    created = client.post("/v1/betaGroups", {"data": {
+        "type": "betaGroups",
+        "attributes": {"name": name, "publicLinkEnabled": True, "feedbackEnabled": True},
+        "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
+    }})
+    return created["data"], True
+
+
+def missing_test_info(client, app_id: str, locale: str) -> list[str]:
+    """外部測試送審前 Apple 要求的測試資訊，缺哪些（只讀）。"""
+    missing = []
+    locs = client.get_all(f"/v1/apps/{app_id}/betaAppLocalizations", {"limit": 50})
+    loc = next((l["attributes"] for l in locs if l["attributes"].get("locale") == locale), None)
+    if not loc or not loc.get("description"):
+        missing.append("Beta App 描述")
+    if not loc or not loc.get("feedbackEmail"):
+        missing.append("回饋電子郵件")
+    detail = client.get(f"/v1/apps/{app_id}/betaAppReviewDetail")["data"]["attributes"]
+    for key, label in (("contactFirstName", "審查聯絡人名字"), ("contactLastName", "審查聯絡人姓氏"),
+                       ("contactPhone", "審查聯絡人電話"), ("contactEmail", "審查聯絡人信箱")):
+        if not detail.get(key):
+            missing.append(label)
+    return missing
+
+
+EXTERNAL_READY = {"IN_BETA_TESTING", "BETA_APPROVED", "READY_FOR_BETA_TESTING"}
+EXTERNAL_FAILED = {"BETA_REJECTED", "EXPIRED", "PROCESSING_EXCEPTION"}
+EXTERNAL_IN_REVIEW = {"WAITING_FOR_BETA_REVIEW", "IN_BETA_REVIEW"}
+
+
+def classify_external(state: str | None) -> str:
+    if state in EXTERNAL_READY:
+        return "ready"
+    if state in EXTERNAL_FAILED:
+        return "failed"
+    if state in EXTERNAL_IN_REVIEW:
+        return "in_review"
+    return "pending"
+
+
+def distribute_external(client, build_id: str, group_id: str, locale: str, what_to_test: str) -> dict:
+    """內測可用後：填 What to Test、加入外部群組、送 Beta App Review（已送過就不重送）。"""
+    out: dict = {"group_id": group_id}
+    try:
+        locs = client.get_all(f"/v1/builds/{build_id}/betaBuildLocalizations", {"limit": 50})
+        loc = next((l for l in locs if l["attributes"].get("locale") == locale), None)
+        if loc is None:
+            client.post("/v1/betaBuildLocalizations", {"data": {
+                "type": "betaBuildLocalizations",
+                "attributes": {"locale": locale, "whatsNew": what_to_test},
+                "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
+            }})
+        elif loc["attributes"].get("whatsNew") != what_to_test:
+            client.patch(f"/v1/betaBuildLocalizations/{loc['id']}", {"data": {
+                "type": "betaBuildLocalizations", "id": loc["id"], "attributes": {"whatsNew": what_to_test}}})
+
+        members = client.get_all(f"/v1/betaGroups/{group_id}/builds", {"fields[builds]": "version", "limit": 200})
+        if not any(m["id"] == build_id for m in members):
+            client.post(f"/v1/betaGroups/{group_id}/relationships/builds",
+                        {"data": [{"type": "builds", "id": build_id}]})
+
+        try:
+            submission = client.get(f"/v1/builds/{build_id}/betaAppReviewSubmission").get("data")
+        except ApiError as error:
+            if error.status != 404:
+                raise
+            submission = None
+        if not submission:
+            client.post("/v1/betaAppReviewSubmissions", {"data": {
+                "type": "betaAppReviewSubmissions",
+                "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
+            }})
+            out["submitted"] = True
+
+        state = client.get(f"/v1/builds/{build_id}/buildBetaDetail")["data"]["attributes"].get("externalBuildState")
+    except AuthError as error:
+        return {**out, "status": "unknown", "reason": "auth_error", "error": str(error)}
+    except ApiError as error:  # 多半是測試資訊沒填齊，Apple 會在錯誤裡說缺什麼；不重送
+        return {**out, "status": "blocked", "reason": "api_error", "error": str(error)}
+    status = classify_external(state)
+    return {**out, "status": "submitted" if status in ("in_review", "pending") else status, "state": state}
 
 
 # ---------------------------------------------------------------- 專案檔
@@ -217,6 +314,17 @@ def preflight(args) -> int:
             problems.append(f"TestFlight 還沒有內部測試群組「{CONFIG['beta_group']}」：TestFlight → 內部測試 → ＋ 建立")
         elif group and not group["attributes"].get("isInternalGroup"):
             problems.append(f"群組「{CONFIG['beta_group']}」不是內部測試群組")
+
+        # 外部測試只發警告：缺資料時內測照常發布，外部送審會在通知裡標示 blocked。
+        if app and CONFIG.get("external_group"):
+            try:
+                _, created = ensure_external_group(client, app["id"], CONFIG["external_group"])
+                if created:
+                    print(f"已建立外部測試群組「{CONFIG['external_group']}」（公開連結已開啟）")
+                for item in missing_test_info(client, app["id"], CONFIG["beta_locale"]):
+                    print(f"::warning::外部測試資訊缺少「{item}」：App Store Connect → TestFlight → 測試資訊")
+            except ApiError as error:
+                print(f"::warning::外部測試群組／測試資訊檢查失敗（不影響內測）：{error}")
     except AuthError as error:
         print(f"::error::App Store Connect API 授權失敗：{error}")
         return 3
@@ -361,6 +469,16 @@ def verify(args) -> int:
             outcome = wait_for_ready(
                 client, app["id"], group["id"], args.version, args.build_number,
                 deadline_s=min(args.deadline_minutes, 100) * 60, find_deadline_s=args.find_deadline_minutes * 60)
+            # 內測確定可用才送外部測試；審查結果由 external-watch 排程另外通知。
+            if outcome.status == "ready" and args.external and CONFIG.get("external_group"):
+                try:
+                    external_group, _ = ensure_external_group(client, app["id"], CONFIG["external_group"])
+                except ApiError as error:  # 外部失敗不能蓋掉已確認的內測結果
+                    result["external"] = {"status": "blocked", "reason": "group_error", "error": str(error)}
+                else:
+                    result["external"] = distribute_external(
+                        client, outcome.details["build_id"], external_group["id"],
+                        CONFIG["beta_locale"], CONFIG["what_to_test"])
     except AuthError as error:
         outcome = Observation("unknown", "authorization", "auth_error", {"error": str(error)})
     except ApiError as error:
@@ -373,6 +491,52 @@ def verify(args) -> int:
     if args.out:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     return {"ready": 0, "failed": 1}.get(outcome.status, 2)
+
+
+# ---------------------------------------------------------------- external-watch
+
+
+def external_events(builds: list[dict], now: datetime, max_age_hours: int) -> list[dict]:
+    """最近送審的 build 中，哪些有結果要通知：ready / failed，或審查超過期限的 unknown。
+
+    builds：[{version, build_number, uploaded, state}]；還沒送審或審查中（未逾時）的不通知。
+    """
+    events = []
+    for build in builds:
+        age_h = (now - datetime.fromisoformat(build["uploaded"])).total_seconds() / 3600
+        status = classify_external(build["state"])
+        if status in ("ready", "failed"):
+            events.append({**build, "status": status})
+        elif status == "in_review" and age_h > max_age_hours:
+            events.append({**build, "status": "unknown", "reason": "review_timeout"})
+    return events
+
+
+def external_watch(args) -> int:
+    client = AscClient.from_env()
+    app = find_app(client, CONFIG["bundle_id"])
+    if not app:
+        print("::error::找不到 App")
+        return 2
+    page = client.get("/v1/builds", {"filter[app]": app["id"], "sort": "-uploadedDate", "limit": 10,
+                                     "fields[builds]": "version,uploadedDate"})
+    now = datetime.now(timezone.utc)
+    builds = []
+    for build in page.get("data", []):
+        uploaded = build["attributes"]["uploadedDate"]
+        # 只看最近的；超過期限再多留一天，讓逾時通知有機會發出去
+        if (now - datetime.fromisoformat(uploaded)).total_seconds() > (args.max_age_hours + 24) * 3600:
+            continue
+        state = client.get(f"/v1/builds/{build['id']}/buildBetaDetail")["data"]["attributes"].get("externalBuildState")
+        version = client.get(f"/v1/builds/{build['id']}/preReleaseVersion")["data"]["attributes"]["version"]
+        builds.append({"version": version, "build_number": build["attributes"]["version"],
+                       "uploaded": uploaded, "state": state})
+    events = external_events(builds, now, args.max_age_hours)
+    text = json.dumps(events, ensure_ascii=False, indent=2)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -390,8 +554,14 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--build-number", required=True)
     v.add_argument("--deadline-minutes", type=int, default=90)
     v.add_argument("--find-deadline-minutes", type=int, default=30, help="多久還查不到這個 build 就放棄")
+    v.add_argument("--external", action="store_true", help="內測可用後送外部測試（What to Test、外部群組、Beta 審查）")
     v.add_argument("--out", help="結果 JSON 寫到這裡")
     v.set_defaults(func=verify)
+
+    w = sub.add_parser("external-watch", help="列出最近外部測試審查有結果（或逾時）的 build")
+    w.add_argument("--max-age-hours", type=int, default=72)
+    w.add_argument("--out", help="事件 JSON 寫到這裡")
+    w.set_defaults(func=external_watch)
 
     args = parser.parse_args(argv)
     return args.func(args)

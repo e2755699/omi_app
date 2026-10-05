@@ -144,6 +144,103 @@ class WaitForReadyTest(unittest.TestCase):
         self.assertEqual(len(client.posts), 1)
 
 
+class ExternalFake:
+    """外部測試用到的端點。"""
+
+    def __init__(self, *, localization=None, in_group=False, submitted=False, state="WAITING_FOR_BETA_REVIEW",
+                 submit_error=None):
+        self.localization = localization
+        self.in_group = in_group
+        self.submitted = submitted
+        self.state = state
+        self.submit_error = submit_error
+        self.writes = []
+
+    def get_all(self, path, params=None):
+        if path == f"/v1/builds/{BUILD}/betaBuildLocalizations":
+            return [self.localization] if self.localization else []
+        if path == "/v1/betaGroups/ext/builds":
+            return [{"id": BUILD}] if self.in_group else []
+        raise AssertionError(path)
+
+    def get(self, path, params=None):
+        if path == f"/v1/builds/{BUILD}/betaAppReviewSubmission":
+            return {"data": {"id": "sub1"} if self.submitted else None}
+        if path == f"/v1/builds/{BUILD}/buildBetaDetail":
+            return {"data": {"attributes": {"externalBuildState": self.state}}}
+        raise AssertionError(path)
+
+    def post(self, path, body):
+        self.writes.append(("POST", path))
+        if path == "/v1/betaAppReviewSubmissions" and self.submit_error:
+            raise self.submit_error
+        return {}
+
+    def patch(self, path, body):
+        self.writes.append(("PATCH", path))
+        return {}
+
+
+class ExternalTest(unittest.TestCase):
+    def distribute(self, client):
+        return asc.distribute_external(client, BUILD, "ext", "zh-Hant", "請試試打卡")
+
+    def test_first_time_sets_notes_joins_group_and_submits(self):
+        client = ExternalFake()
+        result = self.distribute(client)
+        self.assertEqual(result["status"], "submitted")
+        self.assertEqual([w[1] for w in client.writes], [
+            "/v1/betaBuildLocalizations", "/v1/betaGroups/ext/relationships/builds", "/v1/betaAppReviewSubmissions"])
+
+    def test_already_done_makes_no_writes(self):
+        client = ExternalFake(localization={"id": "l1", "attributes": {"locale": "zh-Hant", "whatsNew": "請試試打卡"}},
+                              in_group=True, submitted=True, state="IN_BETA_TESTING")
+        self.assertEqual(self.distribute(client)["status"], "ready")
+        self.assertEqual(client.writes, [])
+
+    def test_changed_notes_are_patched_not_duplicated(self):
+        client = ExternalFake(localization={"id": "l1", "attributes": {"locale": "zh-Hant", "whatsNew": "舊的"}},
+                              in_group=True, submitted=True)
+        self.distribute(client)
+        self.assertEqual(client.writes, [("PATCH", "/v1/betaBuildLocalizations/l1")])
+
+    def test_missing_test_info_is_blocked_and_not_retried(self):
+        client = ExternalFake(submit_error=asc.ApiError(409, "Beta App Review Details missing contactPhone"))
+        result = self.distribute(client)
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("contactPhone", result["error"])
+        self.assertEqual(sum(1 for w in client.writes if w[1] == "/v1/betaAppReviewSubmissions"), 1)
+
+    def test_rejection_is_failed(self):
+        client = ExternalFake(in_group=True, submitted=True, state="BETA_REJECTED")
+        self.assertEqual(self.distribute(client)["status"], "failed")
+
+    def test_external_problem_does_not_override_internal_ready(self):
+        args = mock.Mock(version="1.0.0", build_number="7", deadline_minutes=90, find_deadline_minutes=30,
+                         external=True, out=None)
+        ready = asc.Observation("ready", "testflight", "in_beta_testing", {"build_id": BUILD})
+        with mock.patch.object(asc.AscClient, "from_env"), \
+                mock.patch.object(asc, "find_app", return_value={"id": APP}), \
+                mock.patch.object(asc, "find_beta_group", return_value={"id": GROUP}), \
+                mock.patch.object(asc, "wait_for_ready", return_value=ready), \
+                mock.patch.object(asc, "ensure_external_group", side_effect=asc.ApiError(500, "boom")), \
+                mock.patch("builtins.print"):
+            self.assertEqual(asc.verify(args), 0)
+
+    def test_watch_events(self):
+        from datetime import datetime, timezone
+        now = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)
+        builds = [
+            {"version": "1.0.0", "build_number": "5", "uploaded": "2026-10-10T08:00:00+00:00", "state": "IN_BETA_TESTING"},
+            {"version": "1.0.0", "build_number": "4", "uploaded": "2026-10-10T08:00:00+00:00", "state": "IN_BETA_REVIEW"},
+            {"version": "1.0.0", "build_number": "3", "uploaded": "2026-10-06T08:00:00+00:00", "state": "WAITING_FOR_BETA_REVIEW"},
+            {"version": "1.0.0", "build_number": "2", "uploaded": "2026-10-10T08:00:00+00:00", "state": "READY_FOR_BETA_SUBMISSION"},
+            {"version": "1.0.0", "build_number": "1", "uploaded": "2026-10-10T08:00:00+00:00", "state": "BETA_REJECTED"},
+        ]
+        events = {e["build_number"]: e["status"] for e in asc.external_events(builds, now, 72)}
+        self.assertEqual(events, {"5": "ready", "3": "unknown", "1": "failed"})
+
+
 class HelpersTest(unittest.TestCase):
     def test_next_build_number(self):
         self.assertEqual(asc.next_build_number(0, 0), 1)
@@ -205,6 +302,17 @@ class ReportTest(unittest.TestCase):
         _, body = report.compose({**self.ENV, "OUTCOME": "ci_failed", "FAILED_PHASE": "gates"}, None)
         self.assertIn("CI 失敗：品質檢查", body)
         self.assertNotIn("Apple 處理失敗", body)
+
+    def test_external_notice_never_contains_public_link(self):
+        _, body = report.compose_external(self.ENV, {"version": "1.0.0", "build_number": "7", "status": "ready",
+                                                     "state": "IN_BETA_TESTING"})
+        self.assertIn("外部測試可用", body)
+        self.assertNotIn("testflight.apple.com/join", body)
+
+    def test_internal_notice_shows_external_submission(self):
+        _, body = report.compose({**self.ENV, "OUTCOME": "uploaded"},
+                                 {"status": "ready", "external": {"status": "submitted"}})
+        self.assertIn("已送 Beta 審查", body)
 
     def test_dedupe_key_differs_per_result(self):
         k1, _ = report.compose({**self.ENV, "OUTCOME": "uploaded"}, {"status": "unknown"})

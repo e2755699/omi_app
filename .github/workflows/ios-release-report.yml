@@ -1,5 +1,6 @@
 # Codemagic 的 iOS 發布結束後（成功或失敗）會觸發這裡：
 # 上傳成功 → 用 App Store Connect API 查驗「這個版本／build 真的在 TestFlight 內測可用」→
+# 內測可用後送外部測試（What to Test、外部群組、Beta 審查；審查結果由 testflight-external-watch.yml 通知）→
 # 在「📦 iOS 發布通知」issue 留言（GitHub 會寄信）。結果不是 ready 時這個 run 會失敗，另有一封 Actions 失敗信。
 # 也可以在 Actions 頁面手動執行，補查某個 build。說明見 docs/release/ios-release.md。
 name: iOS release report
@@ -88,7 +89,7 @@ jobs:
           python tool/release/asc.py verify \
             --version "$VERSION" --build-number "$BUILD_NUMBER" \
             --deadline-minutes "$DEADLINE_MINUTES" --find-deadline-minutes "$FIND" \
-            --out release-result.json
+            --external --out release-result.json
 
       - name: 通知（留言到 iOS 發布通知 issue）
         if: always()
