@@ -4,6 +4,7 @@ import '../data/challenge_store.dart';
 import '../data/home_widget_bridge.dart';
 import '../models/challenge.dart';
 import '../models/progress.dart';
+import '../widgets/badge_strip.dart';
 import '../widgets/energy_tile.dart';
 import '../widgets/pixel_text.dart';
 import '../widgets/pixel_ui.dart';
@@ -123,6 +124,10 @@ class HomeScreen extends StatelessWidget {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     sliver: SliverToBoxAdapter(child: _CheckInCard(store: store, summary: summary)),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    sliver: SliverToBoxAdapter(child: BadgeStrip(store: store)),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
