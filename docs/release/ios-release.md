@@ -76,6 +76,14 @@ GitHub Actions：testflight-external-watch.yml（每小時）
 
 Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀不回，所以不能直接引用黃絲帶的 `yellow_ribbon_ci`，要在 omi_app 重新放一次（值相同）。
 
+**放秘密（擁有者本人執行，一個指令）**：
+
+```bash
+python tool/release/setup_secrets.py
+```
+
+腳本依序詢問 Codemagic API token、Issuer ID／Key ID／`.p8` 位置、簽章私鑰位置、GitHub token（token 輸入不顯示、不存檔、不印出）。它會先用 API 唯讀確認 key 可用，再透過 Codemagic API 建立／更新兩個群組（全部 Secret），並用 `gh secret set` 寫進 GitHub Actions secrets。之後要輪替時，重跑同一個指令即可。
+
 非秘密設定集中在 [tool/release/config.json](../../tool/release/config.json)：Bundle ID、內部／外部群組名稱、What to Test 文字。改 Bundle ID 時 Xcode 專案也要一起改，預檢會比對。
 
 ## 設定進度
@@ -88,8 +96,8 @@ Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀�
 | 外部群組「Omi 夥伴」 | 第一次預檢自動建立（開公開連結） |
 | Codemagic App | ✅ 已加入（app id `6ac3e6dec18dba32d6229cd5`） |
 | 隱私權政策頁 | ✅ `web/privacy/` → https://e2755699.github.io/omi_app/privacy/ |
-| TestFlight 測試資訊（描述、隱私網址、審查備註） | 代填；回饋信箱、審查聯絡人（姓名／電話／信箱）待擁有者填 |
-| Codemagic 變數群組、GitHub secrets、GitHub token | 待擁有者（秘密只能本人放） |
+| TestFlight 測試資訊（描述、隱私網址、審查備註） | ✅ 已填並儲存；回饋信箱、審查聯絡人（姓名／電話／信箱）待擁有者填 |
+| Codemagic 變數群組、GitHub secrets、GitHub token | 待擁有者執行 `setup_secrets.py`（秘密只能本人放） |
 
 ## 排錯與重試
 
@@ -127,7 +135,7 @@ Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀�
 
 | 情境 | 目前狀態 | 證據 |
 | --- | --- | --- |
-| 正常發布（tag → 內測可用 → 通知） | 已配置；查驗邏輯模擬通過 | `tool/release/test_release.py`（28 項，2026-10-06 本機） |
+| 正常發布（tag → 內測可用 → 通知） | 已配置；查驗邏輯模擬通過 | `tool/release/test_release.py`（29 項，2026-10-06 本機） |
 | 自動 provisioning（乾淨 runner，沿用既有憑證） | 已配置，**未實跑** | — |
 | 外部測試：What to Test、加群組、送審（不重送） | 模擬通過 | `ExternalTest.*` |
 | 外部測試資料不齊 → blocked、不重送 | 模擬通過 | `test_missing_test_info_is_blocked_and_not_retried` |

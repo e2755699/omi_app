@@ -241,6 +241,38 @@ class ExternalTest(unittest.TestCase):
         self.assertEqual(events, {"5": "ready", "3": "unknown", "1": "failed"})
 
 
+class SetupSecretsTest(unittest.TestCase):
+    def test_upsert_creates_missing_group_updates_existing_and_marks_secure(self):
+        import setup_secrets
+
+        calls = []
+
+        def call(method, path, body=None):
+            calls.append((method, path, body))
+            if path.endswith("/variable-groups?page_size=100"):
+                return {"data": [{"id": "g1", "name": "app_store_connect"}]}
+            if path == "/variable-groups/g1/variables?page_size=100":
+                return {"data": [{"id": "v1", "name": "CERTIFICATE_PRIVATE_KEY"}]}
+            if method == "POST" and path.endswith("/variable-groups"):
+                return {"data": {"id": "g2", "name": body["name"]}}
+            if path == "/variable-groups/g2/variables?page_size=100":
+                return {"data": []}
+            return None
+
+        values = {name: f"value-{name}" for names in setup_secrets.GROUPS.values() for name in names}
+        done = setup_secrets.upsert_codemagic(call, "app", values)
+        writes = [(m, p, b) for m, p, b in calls if m != "GET"]
+        self.assertIn(("PATCH", "/variable-groups/g1/variables/v1",
+                       {"value": "value-CERTIFICATE_PRIVATE_KEY", "secure": True}), writes)
+        imports = {p: b for m, p, b in writes if p.endswith("/variables") and m == "POST"}
+        self.assertTrue(all(b["secure"] for b in imports.values()))
+        self.assertEqual({v["name"] for v in imports["/variable-groups/g1/variables"]["variables"]},
+                         {"APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_KEY_IDENTIFIER",
+                          "APP_STORE_CONNECT_PRIVATE_KEY"})
+        self.assertIn(("POST", "/apps/app/variable-groups", {"name": "github_report"}), writes)
+        self.assertFalse(any("value-" in line for line in done))  # 回報只有名稱，不含值
+
+
 class HelpersTest(unittest.TestCase):
     def test_next_build_number(self):
         self.assertEqual(asc.next_build_number(0, 0), 1)
