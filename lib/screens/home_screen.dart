@@ -11,6 +11,7 @@ import '../widgets/pixel_ui.dart';
 import '../widgets/player_card.dart';
 import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
+import '../widgets/star_counter.dart';
 import 'daily_record_screen.dart';
 import 'item_detail_sheet.dart';
 import 'player_screen.dart';
@@ -58,6 +59,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             actions: [
+              StarCounter(store: store),
               _DemoMenu(store: store),
               IconButton(
                 tooltip: '重新設定',
