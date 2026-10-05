@@ -431,7 +431,7 @@ class _PreviewBanner extends StatelessWidget {
   }
 }
 
-enum _DemoAction { previewDate, addWidget, reset }
+enum _DemoAction { previewDate, addWidget, reset, licenses }
 
 /// Demo 工具：換日期看不同階段、把小工具加到桌面、清掉資料重新開始教學。
 class _DemoMenu extends StatelessWidget {
@@ -476,12 +476,20 @@ class _DemoMenu extends StatelessWidget {
             await _addWidget(context);
           case _DemoAction.reset:
             await store.resetAll();
+          case _DemoAction.licenses:
+            // App 本身保留所有權利；第三方開源元件的授權條款列在這頁。
+            showLicensePage(
+              context: context,
+              applicationName: 'Omi',
+              applicationLegalese: '© 2026 Dustin Liu. All rights reserved.',
+            );
         }
       },
       itemBuilder: (_) => const [
         PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
         PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面')),
         PopupMenuItem(value: _DemoAction.reset, child: Text('清除資料，重新開始教學')),
+        PopupMenuItem(value: _DemoAction.licenses, child: Text('授權資訊')),
       ],
     );
   }

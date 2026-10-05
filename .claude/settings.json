@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git merge *)",
+      "Bash(git -C * merge *)",
+      "Bash(gh pr merge *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git -C * merge *)",
+      "PowerShell(gh pr merge *)"
+    ],
+    "ask": [
+      "Bash(git pull *)",
+      "Bash(git rebase *)",
+      "Bash(git cherry-pick *)",
+      "PowerShell(git pull *)",
+      "PowerShell(git rebase *)",
+      "PowerShell(git cherry-pick *)"
+    ]
+  }
+}

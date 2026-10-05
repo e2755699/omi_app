@@ -1,0 +1,92 @@
+Omi - Proprietary License
+
+Copyright (c) 2026 Dustin Liu. All rights reserved.
+
+1. Ownership
+
+This repository and everything in it, including but not limited to the
+source code, compiled builds, the pixel artwork and pixel font, characters,
+user interface designs, text, and documentation (together, the "Software"),
+are the proprietary property of the copyright holder and are protected by
+copyright and other intellectual property laws.
+
+2. No license granted
+
+No license or other right is granted to you, whether expressly, by
+implication, or otherwise, except as stated in Section 3. Without the prior
+written permission of the copyright holder you may not:
+
+  (a) copy, reproduce, download, or store the Software, except as is
+      necessary to view it on GitHub;
+  (b) modify, adapt, translate, or create derivative works of the Software;
+  (c) distribute, publish, sublicense, sell, rent, lease, lend, or otherwise
+      make the Software, or any part of it, available to any third party;
+  (d) use the Software, or any part of it, in any product or service,
+      whether commercial or non-commercial;
+  (e) reverse engineer, decompile, or disassemble any compiled form of the
+      Software, except to the extent that this restriction is prohibited by
+      applicable law;
+  (f) remove or alter any copyright, trademark, or other proprietary notice.
+
+3. Viewing and the public demo
+
+The fact that this repository is publicly visible does not place the
+Software in the public domain and does not make it open source. The only
+rights you have are those that GitHub's Terms of Service require for public
+repositories: to view the repository and to fork it within GitHub. A fork
+may be used only for viewing and is subject to every restriction in this
+license.
+
+The demo published through GitHub Pages is provided for evaluation only. It
+may be changed or withdrawn at any time without notice, and it does not give
+you any right to the Software.
+
+4. Trademarks
+
+"Omi", the Omi logo, and the related names and artwork may not be used to
+identify any product or service without the prior written permission of the
+copyright holder.
+
+5. Third-party components
+
+The Software uses third-party open source components (including the Flutter
+SDK and Dart packages) that are licensed under their own terms. Those terms
+apply only to those components; they do not grant any rights to the rest of
+the Software. Their license notices are shown in the app under
+"授權資訊 / Licenses".
+
+6. Disclaimer of warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OF OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. Termination
+
+Any use of the Software that is not permitted by this license immediately
+ends any permission you may have had, and the copyright holder may enforce
+all available rights and remedies.
+
+8. Contact
+
+For licensing, partnership, or permission requests, contact the copyright
+holder through GitHub: https://github.com/e2755699
+
+-------------------------------------------------------------------------------
+
+中文摘要（以上英文條款為準）
+
+Omi 的原始碼、像素美術與字型、角色、介面設計、文字與文件，著作權皆屬
+Dustin Liu 所有，保留一切權利。
+
+本 repo 公開可見不代表開放原始碼。未經著作權人書面同意，不得複製、
+下載、修改、改作、散布、販售、出租、轉授權，也不得將任何部分用於商業或
+非商業的產品或服務，亦不得反向工程（法律另有規定者除外）。GitHub Pages
+上的 Demo 僅供試用評估，可能隨時更改或下架。「Omi」名稱與相關圖像不得
+用於其他產品或服務。
+
+App 使用的第三方開源元件（例如 Flutter 與 Dart 套件）依各自的授權條款
+提供，可在 App 內「授權資訊」查看。
