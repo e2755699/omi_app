@@ -18,7 +18,7 @@ class OmiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: store.challenge.title,
+      title: 'Omi',
       debugShowCheckedModeBanner: false,
       theme: _buildPixelTheme(),
       locale: _zhTW,
@@ -74,6 +74,8 @@ ThemeData _buildPixelTheme() {
       backgroundColor: PixelColors.paper,
       surfaceTintColor: Colors.transparent,
       shape: Border(top: inkSide),
+      // 大螢幕上不要拉滿整個寬度。
+      constraints: BoxConstraints(maxWidth: 640),
       showDragHandle: true,
       dragHandleColor: PixelColors.ink,
     ),

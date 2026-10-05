@@ -1,11 +1,11 @@
 {
-    "name": "omi_app",
-    "short_name": "omi_app",
+    "name": "Omi～快樂的 Σίσυφος",
+    "short_name": "Omi",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Daily check-in app for a 100-day challenge",
+    "background_color": "#F4EAC8",
+    "theme_color": "#1A1A1A",
+    "description": "100 天挑戰：每天再推一次石頭，和隊友一起養成好習慣",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

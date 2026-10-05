@@ -7,6 +7,7 @@ import '../widgets/energy_tile.dart';
 import '../widgets/keycap.dart';
 import '../widgets/pixel_text.dart';
 import '../widgets/pixel_ui.dart';
+import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import '../widgets/week_strip.dart';
 
@@ -40,7 +41,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     super.initState();
     _loadNotes();
     // 週末或這週已經開始寫了，就直接展開每週回顧。
-    _weeklyOpen = _date.weekday >= DateTime.saturday ||
+    _weeklyOpen =
+        _date.weekday >= DateTime.saturday ||
         _store.entryOn(_review, _date).isDone ||
         _store.entryOn(_plan, _date).isDone;
   }
@@ -142,97 +144,107 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           ];
           final done = keys.where((item) => _store.entryOn(item, _date).isDone).length;
 
-          return Scaffold(
-            appBar: AppBar(title: const Text('每日打卡', style: TextStyle(fontWeight: FontWeight.w900))),
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                  children: [
-                    Row(
-                      children: [
-                        PixelTag('DAY ${challenge.dayNumber(_date)}', dot: 3),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            formatDate(_date),
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        PixelText('$done/${keys.length}', dot: 3),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    WeekStrip(
-                      color: PixelColors.yellow,
-                      days: [
-                        for (final day in challenge.weekOf(_date))
-                          WeekStripDay(
-                            date: day,
-                            inChallenge: challenge.contains(day),
-                            filled: !day.isAfter(_store.today) && _store.dayComplete(day),
-                            highlighted: day == _date,
-                            onTap: _store.canLogOn(day) && day != _date ? () => _selectDay(day) : null,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '點上面的格子可以補登這週前幾天',
-                      style: TextStyle(fontSize: 11, color: PixelColors.muted),
-                    ),
-                    const SizedBox(height: 20),
-                    const SectionTitle(tag: 'CHECK-IN', title: '做到了就按下去'),
-                    const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 130,
-                        mainAxisExtent: 128,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
-                      itemCount: keys.length,
-                      itemBuilder: (context, i) => _ItemKey(
-                        item: keys[i],
-                        on: _store.entryOn(keys[i], _date).isDone,
-                        legend: _legend(keys[i]),
-                        onTap: () => _tapKey(keys[i]),
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    const SectionTitle(tag: 'REFLECT', title: '今天我注意到的事'),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '每日微反思：記下一件今天注意到的事，一句話就好',
-                      style: TextStyle(fontSize: 12, color: PixelColors.muted),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _noticedText,
-                      minLines: 3,
-                      maxLines: 6,
-                      decoration: const InputDecoration(hintText: '例如：午餐後散步，下午比較有精神'),
-                    ),
-                    const SizedBox(height: 22),
-                    _weeklySection(),
-                    const SizedBox(height: 26),
-                    // 像空白鍵一樣的長鍵帽。
-                    SizedBox(
-                      height: 64,
-                      child: Keycap(
-                        onTap: _finish,
-                        faceColor: PixelColors.yellow,
-                        child: const Center(
-                          child: Text('完成打卡 ✓', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                        ),
-                      ),
-                    ),
-                  ],
+          final checkIn = [
+            Row(
+              children: [
+                PixelTag('DAY ${challenge.dayNumber(_date)}', dot: 3),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(formatDate(_date), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                ),
+                PixelText('$done/${keys.length}', dot: 3),
+              ],
+            ),
+            const SizedBox(height: 14),
+            WeekStrip(
+              color: PixelColors.yellow,
+              days: [
+                for (final day in challenge.weekOf(_date))
+                  WeekStripDay(
+                    date: day,
+                    inChallenge: challenge.contains(day),
+                    filled: !day.isAfter(_store.today) && _store.dayComplete(day),
+                    highlighted: day == _date,
+                    onTap: _store.canLogOn(day) && day != _date ? () => _selectDay(day) : null,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text('點上面的格子可以補登這週前幾天', style: TextStyle(fontSize: 11, color: PixelColors.muted)),
+            const SizedBox(height: 20),
+            const SectionTitle(tag: 'CHECK-IN', title: '做到了就按下去'),
+            const SizedBox(height: 12),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 130,
+                mainAxisExtent: 128,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              itemCount: keys.length,
+              itemBuilder: (context, i) => _ItemKey(
+                item: keys[i],
+                on: _store.entryOn(keys[i], _date).isDone,
+                legend: _legend(keys[i]),
+                onTap: () => _tapKey(keys[i]),
+              ),
+            ),
+          ];
+          final reflect = [
+            const SectionTitle(tag: 'REFLECT', title: '今天我注意到的事'),
+            const SizedBox(height: 6),
+            const Text('每日微反思：記下一件今天注意到的事，一句話就好', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _noticedText,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(hintText: '例如：午餐後散步，下午比較有精神'),
+            ),
+            const SizedBox(height: 22),
+            _weeklySection(),
+            const SizedBox(height: 26),
+            // 像空白鍵一樣的長鍵帽。
+            SizedBox(
+              height: 64,
+              child: Keycap(
+                onTap: _finish,
+                faceColor: PixelColors.yellow,
+                child: const Center(
+                  child: Text('完成打卡 ✓', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                 ),
               ),
+            ),
+          ];
+
+          const padding = EdgeInsets.fromLTRB(16, 16, 16, 32);
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('每日打卡', style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
+            body: Center(
+              child: isWideLayout(context)
+                  // 寬螢幕：左邊鍵帽打卡，右邊寫 Reflect。
+                  ? ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ListView(padding: padding, children: checkIn),
+                          ),
+                          Expanded(
+                            child: ListView(padding: padding, children: reflect),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: ListView(padding: padding, children: [...checkIn, const SizedBox(height: 26), ...reflect]),
+                    ),
             ),
           );
         },
@@ -244,9 +256,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     if (item.kind == ItemKind.weeklyAmount) {
       final today = _store.entryOn(item, _date).amount;
       final progress = _store.progress(item);
-      return today > 0 && item.quickAdds.isNotEmpty
-          ? '今天 $today ${item.unit}'
-          : '本週 ${progressText(item, progress)}';
+      return today > 0 && item.quickAdds.isNotEmpty ? '今天 $today ${item.unit}' : '本週 ${progressText(item, progress)}';
     }
     return itemTarget(item, _store.profile);
   }
@@ -386,17 +396,17 @@ class _AmountSheet extends StatelessWidget {
       builder: (context, _) {
         final amount = store.entryOn(item, date).amount;
         Widget key(String label, VoidCallback? onTap, {bool on = false}) => SizedBox(
-              width: 74,
-              height: 66,
-              child: Keycap(
-                onTap: onTap,
-                on: on,
-                color: color,
-                child: Center(
-                  child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                ),
-              ),
-            );
+          width: 74,
+          height: 66,
+          child: Keycap(
+            onTap: onTap,
+            on: on,
+            color: color,
+            child: Center(
+              child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            ),
+          ),
+        );
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),

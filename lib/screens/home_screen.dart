@@ -8,6 +8,7 @@ import '../widgets/energy_tile.dart';
 import '../widgets/pixel_text.dart';
 import '../widgets/pixel_ui.dart';
 import '../widgets/player_card.dart';
+import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import 'daily_record_screen.dart';
 import 'item_detail_sheet.dart';
@@ -25,9 +26,7 @@ class HomeScreen extends StatelessWidget {
     final name = player.profile.name;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(summary.todayComplete ? '你幫 $name 慶祝了 🎉' : '你幫 $name 集氣加油 📣')),
-      );
+      ..showSnackBar(SnackBar(content: Text(summary.todayComplete ? '你幫 $name 慶祝了 🎉' : '你幫 $name 集氣加油 📣')));
   }
 
   @override
@@ -36,12 +35,9 @@ class HomeScreen extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final challenge = store.challenge;
-        final today = store.today;
-        final items = store.items;
         final summary = store.summary;
         final players = store.players;
-        final summaries = [for (final player in players) player.summary(challenge, today)];
-        final completeToday = summaries.where((s) => s.todayComplete).length;
+        final summaries = [for (final player in players) player.summary(challenge, store.today)];
 
         return Scaffold(
           appBar: AppBar(
@@ -65,122 +61,173 @@ class HomeScreen extends StatelessWidget {
               IconButton(
                 tooltip: '重新設定',
                 icon: const Icon(Icons.tune),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    fullscreenDialog: true,
-                    builder: (_) => SetupTutorial(store: store),
-                  ),
-                ),
+                onPressed: () => Navigator.of(context)
+                    .push(MaterialPageRoute<void>(fullscreenDialog: true, builder: (_) => SetupTutorial(store: store))),
               ),
             ],
           ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: CustomScrollView(
-                slivers: [
-                  if (store.previewDate != null)
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      sliver: SliverToBoxAdapter(child: _PreviewBanner(store: store)),
-                    ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    sliver: SliverToBoxAdapter(child: _ChallengeHud(store: store)),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                    sliver: SliverToBoxAdapter(
-                      child: Row(
-                        children: [
-                          const Expanded(child: SectionTitle(tag: 'ENERGY', title: '各項挑戰')),
-                          Text(
-                            '第 ${store.weekNumber} 週 ',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
-                          ),
-                          PixelText('${summary.percent}%', dot: 2),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverGrid.builder(
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 240,
-                        mainAxisExtent: EnergyTile.height,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
-                      itemCount: items.length,
-                      itemBuilder: (context, i) => EnergyTile(
-                        item: items[i],
-                        progress: store.progress(items[i]),
-                        onTap: () => showItemDetailSheet(context, store, items[i]),
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    sliver: SliverToBoxAdapter(child: _CheckInCard(store: store, summary: summary)),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-                    sliver: SliverToBoxAdapter(
-                      child: Row(
-                        children: [
-                          const Expanded(child: SectionTitle(tag: 'PLAYERS', title: '大家的進度')),
-                          if (store.phase == ChallengePhase.ongoing)
-                            Text(
-                              '今天 $completeToday/${players.length} 人全完成',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverGrid.builder(
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 240,
-                        mainAxisExtent: PlayerCard.height,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                      ),
-                      itemCount: players.length,
-                      itemBuilder: (context, i) => PlayerCard(
-                        player: players[i],
-                        summary: summaries[i],
-                        cheers: store.cheersFor(players[i].id),
-                        cheered: store.hasCheered(players[i].id),
-                        onCheer: store.phase == ChallengePhase.ongoing && !players[i].isMe
-                            ? () => _cheer(context, players[i], summaries[i])
-                            : null,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => PlayerScreen(store: store, playerId: players[i].id),
+          body: isWideLayout(context)
+              ? Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1280),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 左欄固定：挑戰進度＋每日打卡。
+                        SizedBox(
+                          width: 400,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(24, 24, 8, 32),
+                            children: [
+                              if (store.previewDate != null) ...[
+                                _PreviewBanner(store: store),
+                                const SizedBox(height: 16),
+                              ],
+                              _ChallengeHud(store: store),
+                              const SizedBox(height: 16),
+                              _CheckInCard(store: store, summary: summary),
+                            ],
                           ),
                         ),
-                      ),
+                        // 右欄：各項挑戰的能量槽＋大家的進度。
+                        Expanded(
+                          child: CustomScrollView(
+                            slivers: [
+                              ..._energySlivers(context, summary, top: 24),
+                              ..._playerSlivers(context, players, summaries),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SliverPadding(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    sliver: SliverToBoxAdapter(
-                      child: Text(
-                        '＊這是 Demo：隊友是示範資料，你的紀錄只存在這支手機。',
-                        style: TextStyle(fontSize: 11, color: PixelColors.muted),
-                      ),
+                )
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: CustomScrollView(
+                      slivers: [
+                        if (store.previewDate != null)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            sliver: SliverToBoxAdapter(child: _PreviewBanner(store: store)),
+                          ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          sliver: SliverToBoxAdapter(child: _ChallengeHud(store: store)),
+                        ),
+                        ..._energySlivers(context, summary, top: 24),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: _CheckInCard(store: store, summary: summary),
+                          ),
+                        ),
+                        ..._playerSlivers(context, players, summaries),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
         );
       },
     );
+  }
+
+  /// 各項挑戰的能量槽。
+  List<Widget> _energySlivers(BuildContext context, WeekSummary summary, {required double top}) {
+    final items = store.items;
+    return [
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(16, top, 16, 12),
+        sliver: SliverToBoxAdapter(
+          child: Row(
+            children: [
+              const Expanded(
+                child: SectionTitle(tag: 'ENERGY', title: '各項挑戰'),
+              ),
+              Text(
+                '第 ${store.weekNumber} 週 ',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
+              ),
+              PixelText('${summary.percent}%', dot: 2),
+            ],
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverGrid.builder(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            mainAxisExtent: EnergyTile.height,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, i) => EnergyTile(
+            item: items[i],
+            progress: store.progress(items[i]),
+            onTap: () => showItemDetailSheet(context, store, items[i]),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  /// 大家的進度＋Demo 說明。
+  List<Widget> _playerSlivers(BuildContext context, List<Player> players, List<WeekSummary> summaries) {
+    final completeToday = summaries.where((s) => s.todayComplete).length;
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
+        sliver: SliverToBoxAdapter(
+          child: Row(
+            children: [
+              const Expanded(
+                child: SectionTitle(tag: 'PLAYERS', title: '大家的進度'),
+              ),
+              if (store.phase == ChallengePhase.ongoing)
+                Text(
+                  '今天 $completeToday/${players.length} 人全完成',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
+                ),
+            ],
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverGrid.builder(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            mainAxisExtent: PlayerCard.height,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+          ),
+          itemCount: players.length,
+          itemBuilder: (context, i) => PlayerCard(
+            player: players[i],
+            summary: summaries[i],
+            cheers: store.cheersFor(players[i].id),
+            cheered: store.hasCheered(players[i].id),
+            onCheer: store.phase == ChallengePhase.ongoing && !players[i].isMe
+                ? () => _cheer(context, players[i], summaries[i])
+                : null,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PlayerScreen(store: store, playerId: players[i].id),
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SliverPadding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
+        sliver: SliverToBoxAdapter(
+          child: Text('＊這是 Demo：隊友是示範資料，你的紀錄只存在這台裝置。', style: TextStyle(fontSize: 11, color: PixelColors.muted)),
+        ),
+      ),
+    ];
   }
 }
 
@@ -201,15 +248,15 @@ class _ChallengeHud extends StatelessWidget {
 
     final (String tag, String big, String caption) = switch (store.phase) {
       ChallengePhase.notStarted => (
-          'READY?',
-          'D-$daysToStart',
-          '還有 $daysToStart 天開始 · ${formatDate(challenge.start)} 開跑',
-        ),
+        'READY?',
+        'D-$daysToStart',
+        '還有 $daysToStart 天開始 · ${formatDate(challenge.start)} 開跑',
+      ),
       ChallengePhase.ongoing => (
-          'DAY',
-          '$dayNumber/$total',
-          '第 ${store.weekNumber} 週 · ${remaining == 0 ? '最後一天，衝啊！' : '還剩 $remaining 天'}',
-        ),
+        'DAY',
+        '$dayNumber/$total',
+        '第 ${store.weekNumber} 週 · ${remaining == 0 ? '最後一天，衝啊！' : '還剩 $remaining 天'}',
+      ),
       ChallengePhase.finished => ('CLEAR!', '$total/$total', '挑戰完成 🎉 辛苦大家了！'),
     };
 
@@ -284,13 +331,13 @@ class _CheckInCard extends StatelessWidget {
             color: !ongoing
                 ? PixelColors.sand
                 : checkedIn
-                    ? PixelColors.paper
-                    : PixelColors.yellow,
+                ? PixelColors.paper
+                : PixelColors.yellow,
             pressed: checkedIn || !ongoing,
             onTap: ongoing
-                ? () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => DailyRecordScreen(store: store)),
-                    )
+                ? () =>
+                      Navigator.of(context)
+                          .push(MaterialPageRoute<void>(builder: (_) => DailyRecordScreen(store: store)))
                 : null,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Row(
@@ -412,9 +459,7 @@ class _DemoMenu extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final requested = await HomeWidgetBridge.requestPin();
     if (!requested) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('請長按手機桌面 → 小工具 → 找「100天挑戰」拖到桌面')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('請長按手機桌面 → 小工具 → 找「Omi」拖到桌面')));
     }
   }
 

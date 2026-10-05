@@ -10,7 +10,9 @@ import '../widgets/keycap.dart';
 import '../widgets/pixel_text.dart';
 import '../widgets/pixel_ui.dart';
 import '../widgets/player_card.dart';
+import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
+import 'title_screen.dart';
 
 const _avatars = ['😀', '😎', '🦊', '🐻', '🐱', '🐼', '🦁', '🐸', '🐧', '🦄', '🐯', '🐶'];
 
@@ -22,7 +24,8 @@ const _pillarIntro = {
   Pillar.reflect: '每天記錄，每週回顧',
 };
 
-enum _Step { welcome, player, move, nourish, learn, recover, reflect, ready }
+/// [_Step.intro] 是 STEP 0 的標題畫面（介紹 Omi），後面才是 STEP 1–8。
+enum _Step { intro, welcome, player, move, nourish, learn, recover, reflect, ready }
 
 /// 設定教學：嚮導一步一步介紹規則，邊介紹邊完成個人設定，最後產生自己的儀表板。
 /// 第一次打開 App 會看到；之後可以從首頁右上角「重新設定」再走一次。
@@ -37,7 +40,8 @@ class SetupTutorial extends StatefulWidget {
 
 class _SetupTutorialState extends State<SetupTutorial> {
   late final Profile _initial = widget.store.profile;
-  var _step = _Step.welcome;
+  // 已經設定過（從首頁「重新設定」進來）就跳過標題畫面。
+  late var _step = widget.store.isSetUp ? _Step.welcome : _Step.intro;
   late final _name = TextEditingController(text: widget.store.isSetUp ? _initial.name : '');
   late final _weight = TextEditingController(text: _formatWeight(_initial.weightKg));
   late String _avatar = _initial.avatar;
@@ -62,19 +66,19 @@ class _SetupTutorialState extends State<SetupTutorial> {
   }
 
   Profile get _draft => Profile(
-        name: _name.text.trim(),
-        avatar: _avatar,
-        weightKg: _weightKg,
-        nourishChoice: _nourish,
-        bedtime: _bedtime,
-        wakeTime: _wakeTime,
-      );
+    name: _name.text.trim(),
+    avatar: _avatar,
+    weightKg: _weightKg,
+    nourishChoice: _nourish,
+    bedtime: _bedtime,
+    wakeTime: _wakeTime,
+  );
 
   bool get _canContinue => switch (_step) {
-        _Step.player => _name.text.trim().isNotEmpty,
-        _Step.nourish => _nourish.length == 2 && (!_needsWeight || _weightKg != null),
-        _ => true,
-      };
+    _Step.player => _name.text.trim().isNotEmpty,
+    _Step.nourish => _nourish.length == 2 && (!_needsWeight || _weightKg != null),
+    _ => true,
+  };
 
   @override
   void dispose() {
@@ -134,69 +138,76 @@ class _SetupTutorialState extends State<SetupTutorial> {
 
   @override
   Widget build(BuildContext context) {
-    final index = _step.index;
-    final total = _Step.values.length;
+    if (_step == _Step.intro) {
+      return TitleScreen(challenge: _challenge, onStart: () => setState(() => _step = _Step.welcome));
+    }
+    // 標題畫面是 STEP 0，不算在進度裡。
+    final index = _step.index - 1;
+    final total = _Step.values.length - 1;
     final canClose = Navigator.of(context).canPop();
+    final wide = isWideLayout(context);
+    final page = Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 14, canClose ? 4 : 20, 6),
+          child: Row(
+            children: [
+              PixelText('STEP ${index + 1}/$total', dot: 2),
+              const SizedBox(width: 12),
+              Expanded(
+                child: PixelProgressBar(value: (index + 1) / total, color: PixelColors.yellow, segments: total),
+              ),
+              if (canClose)
+                IconButton(tooltip: '關閉', onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            key: ValueKey(_step),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _content()),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+          child: Row(
+            children: [
+              if (index > 0) ...[
+                Expanded(
+                  child: _NavKey(label: '上一步', onTap: _back),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                flex: 2,
+                child: _NavKey(
+                  label: _step == _Step.ready ? '進入我的儀表板' : '下一步',
+                  primary: true,
+                  onTap: _canContinue && !_saving ? _next : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(20, 14, canClose ? 4 : 20, 6),
-                  child: Row(
+            constraints: BoxConstraints(maxWidth: wide ? 1040 : 560),
+            child: wide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PixelText('STEP ${index + 1}/$total', dot: 2),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: PixelProgressBar(
-                          value: (index + 1) / total,
-                          color: PixelColors.yellow,
-                          segments: total,
-                        ),
-                      ),
-                      if (canClose)
-                        IconButton(
-                          tooltip: '關閉',
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close),
-                        ),
+                      SizedBox(width: 260, child: _StepSidebar(current: index)),
+                      const SizedBox(width: 24),
+                      Expanded(child: page),
                     ],
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    key: ValueKey(_step),
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _content(),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-                  child: Row(
-                    children: [
-                      if (index > 0) ...[
-                        Expanded(child: _NavKey(label: '上一步', onTap: _back)),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        flex: 2,
-                        child: _NavKey(
-                          label: _step == _Step.ready ? '進入我的儀表板' : '下一步',
-                          primary: true,
-                          onTap: _canContinue && !_saving ? _next : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : page,
           ),
         ),
       ),
@@ -204,106 +215,108 @@ class _SetupTutorialState extends State<SetupTutorial> {
   }
 
   List<Widget> _content() => switch (_step) {
-        _Step.welcome => _welcome(),
-        _Step.player => _player(),
-        _Step.move => _move(),
-        _Step.nourish => _nourishStep(),
-        _Step.learn => _learn(),
-        _Step.recover => _recover(),
-        _Step.reflect => _reflect(),
-        _Step.ready => _ready(),
-      };
+    _Step.intro => const [],
+    _Step.welcome => _welcome(),
+    _Step.player => _player(),
+    _Step.move => _move(),
+    _Step.nourish => _nourishStep(),
+    _Step.learn => _learn(),
+    _Step.recover => _recover(),
+    _Step.reflect => _reflect(),
+    _Step.ready => _ready(),
+  };
 
   List<Widget> _welcome() => [
-        GuideBubble(
-          text: '嗨！我是你的嚮導 🧭\n接下來 ${_challenge.totalDays} 天'
-              '（${formatShortDate(_challenge.start)} → ${formatShortDate(_challenge.end)}），'
-              '我們要一起練習 5 種好習慣。我帶你一步一步設定好你的挑戰儀表板！',
-        ),
-        const SizedBox(height: 28),
-        Center(child: PixelText('${_challenge.totalDays} DAYS', dot: 6)),
-        const SizedBox(height: 28),
-        for (final pillar in Pillar.values)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PixelBox(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  Text(pillar.emoji, style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 96, child: Align(alignment: Alignment.centerLeft, child: PixelTag(pillar.tag))),
-                  Expanded(
-                    child: Text(_pillarIntro[pillar]!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: 12),
-        _TipBox(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    GuideBubble(
+      text:
+          '嗨！我是你的嚮導 🧭\n接下來 ${_challenge.totalDays} 天'
+          '（${formatShortDate(_challenge.start)} → ${formatShortDate(_challenge.end)}），'
+          '我們要一起練習 5 種好習慣。我帶你一步一步設定好你的挑戰儀表板！',
+    ),
+    const SizedBox(height: 28),
+    Center(child: PixelText('${_challenge.totalDays} DAYS', dot: 6)),
+    const SizedBox(height: 28),
+    for (final pillar in Pillar.values)
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: PixelBox(
+          padding: const EdgeInsets.all(10),
+          child: Row(
             children: [
-              const Text('每一項挑戰都有一條能量槽 ⚡', style: TextStyle(fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              PixelCellsBar(
-                cells: const [true, true, true, true, false, false, false],
-                color: pillarColor(Pillar.move),
+              Text(pillar.emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 96,
+                child: Align(alignment: Alignment.centerLeft, child: PixelTag(pillar.tag)),
               ),
-              const SizedBox(height: 6),
-              const Text('做到就充電，一週充滿就是 100%', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
+              Expanded(
+                child: Text(_pillarIntro[pillar]!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
             ],
           ),
         ),
-      ];
+      ),
+    const SizedBox(height: 12),
+    _TipBox(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('每一項挑戰都有一條能量槽 ⚡', style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          PixelCellsBar(cells: const [true, true, true, true, false, false, false], color: pillarColor(Pillar.move)),
+          const SizedBox(height: 6),
+          const Text('做到就充電，一週充滿就是 100%', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
+        ],
+      ),
+    ),
+  ];
 
   List<Widget> _player() => [
-        const GuideBubble(text: '先建立你的角色！隊友會在「大家的進度」看到你的名字和頭像，還可以幫你集氣加油 📣'),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _name,
-          onChanged: (_) => setState(() {}),
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(labelText: '你的名字（暱稱也可以）'),
-        ),
-        const SizedBox(height: 20),
-        const Text('選一個頭像', style: TextStyle(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final avatar in _avatars)
-              GestureDetector(
-                onTap: () => setState(() => _avatar = avatar),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: avatar == _avatar ? PixelColors.yellow : PixelColors.paper,
-                    border: Border.all(color: PixelColors.ink, width: avatar == _avatar ? 4 : 2),
-                  ),
-                  child: Text(avatar, style: const TextStyle(fontSize: 24)),
-                ),
+    const GuideBubble(text: '先建立你的角色！隊友會在「大家的進度」看到你的名字和頭像，還可以幫你集氣加油 📣'),
+    const SizedBox(height: 24),
+    TextField(
+      controller: _name,
+      onChanged: (_) => setState(() {}),
+      textInputAction: TextInputAction.done,
+      decoration: const InputDecoration(labelText: '你的名字（暱稱也可以）'),
+    ),
+    const SizedBox(height: 20),
+    const Text('選一個頭像', style: TextStyle(fontWeight: FontWeight.w900)),
+    const SizedBox(height: 10),
+    Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final avatar in _avatars)
+          GestureDetector(
+            onTap: () => setState(() => _avatar = avatar),
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: avatar == _avatar ? PixelColors.yellow : PixelColors.paper,
+                border: Border.all(color: PixelColors.ink, width: avatar == _avatar ? 4 : 2),
               ),
-          ],
-        ),
-        const SizedBox(height: 28),
-        Center(
-          child: Column(
-            children: [
-              PlayerAvatar(profile: _draft, size: 72),
-              const SizedBox(height: 8),
-              Text(
-                _name.text.trim().isEmpty ? '???' : _name.text.trim(),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-              ),
-            ],
+              child: Text(avatar, style: const TextStyle(fontSize: 24)),
+            ),
           ),
-        ),
-      ];
+      ],
+    ),
+    const SizedBox(height: 28),
+    Center(
+      child: Column(
+        children: [
+          PlayerAvatar(profile: _draft, size: 72),
+          const SizedBox(height: 8),
+          Text(
+            _name.text.trim().isEmpty ? '???' : _name.text.trim(),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    ),
+  ];
 
   List<Widget> _move() {
     final aerobic = itemById('aerobic');
@@ -320,7 +333,8 @@ class _SetupTutorialState extends State<SetupTutorial> {
       const _TipBox(text: '💡 例如：一、三、五各快走 50 分鐘，二、四做肌力訓練。每天打卡時按一下，能量槽就會一格一格充滿。'),
       const SizedBox(height: 10),
       _TipBox(
-        text: '📅 第一週只有 $firstWeekDays 天（${formatShortDate(_challenge.start)} 開始），'
+        text:
+            '📅 第一週只有 $firstWeekDays 天（${formatShortDate(_challenge.start)} 開始），'
             '目標照比例調整：有氧 ${firstWeek(aerobic)} 分鐘、肌力 ${firstWeek(strength)} 次。',
       ),
     ];
@@ -330,9 +344,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
     final locked = _store.nourishLocked;
     return [
       GuideBubble(
-        text: locked
-            ? '挑戰已經開始了，你的 3 選 2 要維持原本的選擇喔！體重可以更新。'
-            : 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請選兩項，而且整個挑戰都要維持同樣的選擇喔！',
+        text: locked ? '挑戰已經開始了，你的 3 選 2 要維持原本的選擇喔！體重可以更新。' : 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請選兩項，而且整個挑戰都要維持同樣的選擇喔！',
       ),
       const SizedBox(height: 20),
       const Text('每個人都要做', style: TextStyle(fontWeight: FontWeight.w900)),
@@ -364,11 +376,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
           controller: _weight,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: '你的體重',
-            suffixText: 'kg',
-            helperText: '用來算你每天要吃多少蛋白質、喝多少水',
-          ),
+          decoration: const InputDecoration(labelText: '你的體重', suffixText: 'kg', helperText: '用來算你每天要吃多少蛋白質、喝多少水'),
         ),
         if (_weightKg != null) ...[
           const SizedBox(height: 12),
@@ -384,26 +392,28 @@ class _SetupTutorialState extends State<SetupTutorial> {
   }
 
   List<Widget> _learn() => [
-        const GuideBubble(text: 'LEARN 很簡單：每天至少 20 分鐘閱讀，聽有聲書也算！'),
-        const SizedBox(height: 20),
-        _RuleCard(item: itemById('reading')),
-        const SizedBox(height: 16),
-        const _TipBox(text: '💡 把書放在床頭，睡前讀 20 分鐘，還能順便幫助放鬆入睡。'),
-      ];
+    const GuideBubble(text: 'LEARN 很簡單：每天至少 20 分鐘閱讀，聽有聲書也算！'),
+    const SizedBox(height: 20),
+    _RuleCard(item: itemById('reading')),
+    const SizedBox(height: 16),
+    const _TipBox(text: '💡 把書放在床頭，睡前讀 20 分鐘，還能順便幫助放鬆入睡。'),
+  ];
 
   List<Widget> _recover() {
     final window = _draft.sleepWindow!;
     final enough = window >= 8 * 60;
     return [
-      const GuideBubble(
-        text: 'RECOVER 是好好睡覺：每天為睡眠留 8 小時，而且固定時間睡、固定時間起（每天差距在 ±60 分鐘內）。先設定你的作息吧！',
-      ),
+      const GuideBubble(text: 'RECOVER 是好好睡覺：每天為睡眠留 8 小時，而且固定時間睡、固定時間起（每天差距在 ±60 分鐘內）。先設定你的作息吧！'),
       const SizedBox(height: 20),
       Row(
         children: [
-          Expanded(child: _TimeKey(label: '🌙 上床睡覺', minutes: _bedtime, onTap: () => _pickTime(bedtime: true))),
+          Expanded(
+            child: _TimeKey(label: '🌙 上床睡覺', minutes: _bedtime, onTap: () => _pickTime(bedtime: true)),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _TimeKey(label: '☀️ 起床', minutes: _wakeTime, onTap: () => _pickTime(bedtime: false))),
+          Expanded(
+            child: _TimeKey(label: '☀️ 起床', minutes: _wakeTime, onTap: () => _pickTime(bedtime: false)),
+          ),
         ],
       ),
       const SizedBox(height: 12),
@@ -414,9 +424,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
           border: Border.all(color: enough ? PixelColors.green : PixelColors.orange, width: 2),
         ),
         child: Text(
-          enough
-              ? '✓ 睡眠機會 ${formatHours(window)} 小時，符合 8 小時的規則'
-              : '⚠ 只有 ${formatHours(window)} 小時，規則是至少 8 小時喔',
+          enough ? '✓ 睡眠機會 ${formatHours(window)} 小時，符合 8 小時的規則' : '⚠ 只有 ${formatHours(window)} 小時，規則是至少 8 小時喔',
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -428,50 +436,54 @@ class _SetupTutorialState extends State<SetupTutorial> {
   }
 
   List<Widget> _reflect() => [
-        const GuideBubble(
-          text: '最後是 REFLECT。每天按首頁的「每日打卡」，把今天做到的項目一顆一顆按下去，再寫下一件「今天我注意到的事」。',
-        ),
-        const SizedBox(height: 20),
-        PixelBox(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    const GuideBubble(text: '最後是 REFLECT。每天按首頁的「每日打卡」，把今天做到的項目一顆一顆按下去，再寫下一件「今天我注意到的事」。'),
+    const SizedBox(height: 20),
+    PixelBox(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  const PixelTag('DAY 1'),
-                  const SizedBox(width: 8),
-                  Text(formatDate(_challenge.start), style: const TextStyle(fontWeight: FontWeight.w800)),
-                ],
+              const PixelTag('DAY 1'),
+              const SizedBox(width: 8),
+              Text(formatDate(_challenge.start), style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(
+                child: _MockKey(emoji: '🏃', title: '有氧', on: true, color: Color(0xFFF29F05)),
               ),
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  Expanded(child: _MockKey(emoji: '🏃', title: '有氧', on: true, color: Color(0xFFF29F05))),
-                  SizedBox(width: 8),
-                  Expanded(child: _MockKey(emoji: '📖', title: '閱讀', on: true, color: Color(0xFF3A86FF))),
-                  SizedBox(width: 8),
-                  Expanded(child: _MockKey(emoji: '🛏️', title: '睡眠', on: false, color: Color(0xFF8B5CF6))),
-                ],
+              SizedBox(width: 8),
+              Expanded(
+                child: _MockKey(emoji: '📖', title: '閱讀', on: true, color: Color(0xFF3A86FF)),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: PixelColors.ink, width: 2),
-                ),
-                child: const Text(
-                  '✏️ 今天我注意到的事：\n午餐後散步，下午比較有精神',
-                  style: TextStyle(fontSize: 13, height: 1.5, fontWeight: FontWeight.w600),
-                ),
+              SizedBox(width: 8),
+              Expanded(
+                child: _MockKey(emoji: '🛏️', title: '睡眠', on: false, color: Color(0xFF8B5CF6)),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        const _TipBox(text: '📆 每週末再花 10 分鐘：\n・回答 3 個回顧問題\n・排好下週計畫（尤其是 Move）\n・留下一張代表這週的照片'),
-      ];
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: PixelColors.ink, width: 2),
+            ),
+            child: const Text(
+              '✏️ 今天我注意到的事：\n午餐後散步，下午比較有精神',
+              style: TextStyle(fontSize: 13, height: 1.5, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 16),
+    const _TipBox(text: '📆 每週末再花 10 分鐘：\n・回答 3 個回顧問題\n・排好下週計畫（尤其是 Move）\n・留下一張代表這週的照片'),
+  ];
 
   List<Widget> _ready() {
     final draft = _draft;
@@ -547,6 +559,73 @@ class _SetupTutorialState extends State<SetupTutorial> {
   }
 }
 
+const _stepLabels = ['歡迎', '建立角色', 'MOVE 運動', 'NOURISH 營養', 'LEARN 學習', 'RECOVER 恢復', 'REFLECT 反思', '完成！'];
+
+/// 寬螢幕左邊的步驟清單：做完的打勾、現在這步加粗框。
+class _StepSidebar extends StatelessWidget {
+  const _StepSidebar({required this.current});
+
+  final int current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 0, 24),
+      child: PixelBox(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PixelText('OMI', dot: 4),
+            const SizedBox(height: 6),
+            const Text(
+              '設定你的挑戰',
+              style: TextStyle(fontWeight: FontWeight.w800, color: PixelColors.muted),
+            ),
+            const SizedBox(height: 18),
+            for (final (i, label) in _stepLabels.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: i < current
+                            ? PixelColors.yellow
+                            : i == current
+                            ? PixelColors.paper
+                            : PixelColors.sand,
+                        border: Border.all(
+                          color: i <= current ? PixelColors.ink : PixelColors.muted.withValues(alpha: 0.4),
+                          width: i == current ? 3 : 2,
+                        ),
+                      ),
+                      child: i < current ? const PixelText('✓', dot: 2) : PixelText('${i + 1}', dot: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: i == current ? FontWeight.w900 : FontWeight.w700,
+                          color: i <= current ? PixelColors.ink : PixelColors.muted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NavKey extends StatelessWidget {
   const _NavKey({required this.label, required this.onTap, this.primary = false});
 
@@ -601,7 +680,12 @@ class _RuleCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   item.rule,
-                  style: const TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w600, color: PixelColors.muted),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                    color: PixelColors.muted,
+                  ),
                 ),
                 if (target != null) ...[
                   const SizedBox(height: 6),
@@ -707,7 +791,10 @@ class _MockKey extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(emoji, style: const TextStyle(fontSize: 20)),
-            Text(title, style: TextStyle(fontWeight: FontWeight.w900, color: on ? onColor(color) : PixelColors.ink)),
+            Text(
+              title,
+              style: TextStyle(fontWeight: FontWeight.w900, color: on ? onColor(color) : PixelColors.ink),
+            ),
           ],
         ),
       ),

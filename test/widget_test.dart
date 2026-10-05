@@ -115,6 +115,11 @@ void main() {
     testWidgets('第一次打開是設定教學，走完產生儀表板', (tester) async {
       final store = await ChallengeStore.load(clock: () => DateTime(2026, 10, 6, 9), demoDay: null);
       await tester.pumpWidget(OmiApp(store: store));
+      // STEP 0 標題畫面有一直在動的動畫，不能用 pumpAndSettle。
+      await tester.pump();
+      expect(_pixelText('OMI'), findsOneWidget);
+      expect(find.text('～ 快樂的 Σίσυφος ～'), findsOneWidget);
+      await tester.tap(find.text('開始挑戰'));
       await tester.pumpAndSettle();
       expect(_pixelText('STEP 1/8'), findsOneWidget);
 
