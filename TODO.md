@@ -24,6 +24,17 @@
 
 - [ ] 後端：讓大家真的看到彼此進度、加油數是真的（現在隊友是示範資料）
 - [ ] 中文也換成像素字型（例如俐方體11號 Cubic 11，OFL 授權）
-- [ ] 像素風 App 圖示
+- [ ] 像素風 App 圖示（上架 App Store 前必須）
 - [ ] iOS 桌面小工具（需要 Mac + Xcode）
 - [ ] 正式簽章，上架 Google Play
+
+## iOS 上架（見 docs/release/）
+
+- [x] Codemagic → TestFlight 管線、上傳後自動查驗＋通知（已配置，待第一次實跑）
+- [ ] 帳號設定：App Store Connect API key、Codemagic 變數群組、GitHub token／secrets、建 App、內部群組
+- [ ] 確定 Bundle ID（永久，建 App 之前）
+- [ ] 正式版拿掉 Demo 內容、挑戰日期不要寫死（審查指南 2.2）
+- [ ] 隱私權政策頁、支援頁（需要聯絡信箱）
+- [ ] 價格／付費協議／歐盟 DSA、要不要支援 iPad
+- [ ] 截圖（iPhone 6.9 吋，支援 iPad 的話加 13 吋）
+- [ ] 送審（擁有者確認後）

@@ -1,0 +1,108 @@
+# Codemagic 的 iOS 發布結束後（成功或失敗）會觸發這裡：
+# 上傳成功 → 用 App Store Connect API 查驗「這個版本／build 真的在 TestFlight 內測可用」→
+# 在「📦 iOS 發布通知」issue 留言（GitHub 會寄信）。結果不是 ready 時這個 run 會失敗，另有一封 Actions 失敗信。
+# 也可以在 Actions 頁面手動執行，補查某個 build。說明見 docs/release/ios-release.md。
+name: iOS release report
+
+on:
+  workflow_dispatch:
+    inputs:
+      outcome:
+        description: Codemagic 結果
+        required: true
+        type: choice
+        options: [uploaded, ci_failed]
+      failed_phase:
+        description: CI 失敗在哪一步（preflight / gates / signing / build / upload）
+        required: false
+        default: ''
+      version:
+        description: 版本，例如 1.0.0
+        required: false
+        default: ''
+      build_number:
+        description: build 號，例如 7
+        required: false
+        default: ''
+      source_ref:
+        description: tag 或 branch
+        required: false
+        default: ''
+      source_commit:
+        description: commit SHA
+        required: false
+        default: ''
+      codemagic_build_url:
+        description: Codemagic build 連結
+        required: false
+        default: ''
+      deadline_minutes:
+        description: 最多等 Apple 幾分鐘（上限 100）
+        required: false
+        default: '90'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ios-release-report-${{ inputs.version }}-${{ inputs.build_number }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      OUTCOME: ${{ inputs.outcome }}
+      FAILED_PHASE: ${{ inputs.failed_phase }}
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      CODEMAGIC_BUILD_URL: ${{ inputs.codemagic_build_url }}
+      DEADLINE_MINUTES: ${{ inputs.deadline_minutes }}
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r tool/release/requirements.txt
+
+      - name: 發布工具的隔離測試
+        run: python -m unittest discover -s tool/release -p "test_*.py"
+
+      # 上傳成功才查；上傳步驟失敗也查一次（可能其實已經傳到 Apple），但 20 分鐘找不到就停。
+      - name: 查驗 TestFlight 內測可用
+        if: env.BUILD_NUMBER != '' && (env.OUTCOME == 'uploaded' || env.FAILED_PHASE == 'upload')
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          FIND=30; [ "$OUTCOME" = uploaded ] || FIND=20
+          python tool/release/asc.py verify \
+            --version "$VERSION" --build-number "$BUILD_NUMBER" \
+            --deadline-minutes "$DEADLINE_MINUTES" --find-deadline-minutes "$FIND" \
+            --out release-result.json
+
+      - name: 通知（留言到 iOS 發布通知 issue）
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tool/release/report.py --result-file release-result.json --status-file final-status.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-release-result-${{ inputs.version }}-${{ inputs.build_number }}
+          path: release-result.json
+          if-no-files-found: ignore
+
+      - name: 結果不是 ready 就讓這個 run 失敗（備援通知）
+        if: always()
+        run: test "$(cat final-status.txt 2>/dev/null)" = ready

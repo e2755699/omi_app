@@ -47,6 +47,16 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# 發布用的秘密絕對不進版控（放 Codemagic／GitHub 的 secret store）
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*_private_key*
+release-result.json
+final-status.txt
+__pycache__/
+
 # Claude Code：只有 .claude/settings.json 要進版控
 .claude/worktrees/
 .claude/launch.json
