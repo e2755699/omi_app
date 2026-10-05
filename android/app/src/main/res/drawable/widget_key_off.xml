@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 還沒打卡：凸起的米色鍵帽（黑框 → 下緣較厚的側邊 → 頂面） -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1A1A1A" />
+        </shape>
+    </item>
+    <item android:bottom="2dp" android:left="2dp" android:right="2dp" android:top="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#BDB49C" />
+        </shape>
+    </item>
+    <item android:bottom="7dp" android:left="4dp" android:right="4dp" android:top="3dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFBF0" />
+        </shape>
+    </item>
+</layer-list>

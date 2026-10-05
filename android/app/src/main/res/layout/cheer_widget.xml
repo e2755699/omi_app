@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 像素風桌面小工具：黑色頂條（第幾天、幾個人幫你加油）＋今天要打卡的鍵帽＋寫 Reflect -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="3dp">
+
+    <LinearLayout
+        android:id="@+id/widget_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1A1A1A"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="3dp">
+
+        <TextView
+            android:id="@+id/widget_day"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="monospace"
+            android:maxLines="1"
+            android:text="DAY 1/100"
+            android:textColor="#FFCC00"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_cheers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="📣 3 人幫你加油"
+            android:textColor="#FFF8E6"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_message"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="打開 App 完成設定"
+        android:textColor="#1A1A1A"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/widget_keys"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="3dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/widget_key_0" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_1" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_2" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_3" style="@style/WidgetKey" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/widget_key_4" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_5" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_6" style="@style/WidgetKey" />
+            <TextView android:id="@+id/widget_key_7" style="@style/WidgetKey" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="3dp"
+        android:text="今天 0/8 項 · ✏️ 寫 Reflect ›"
+        android:textColor="#1A1A1A"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>
