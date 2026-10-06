@@ -79,10 +79,10 @@ Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀�
 **放秘密（擁有者本人執行，一個指令）**：
 
 ```bash
-python tool/release/setup_secrets.py
+python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 ```
 
-腳本依序詢問 Codemagic API token、Issuer ID／Key ID／`.p8` 位置、簽章私鑰位置、GitHub token（token 輸入不顯示、不存檔、不印出）。它會先用 API 唯讀確認 key 可用，再透過 Codemagic API 建立／更新兩個群組（全部 Secret），並用 `gh secret set` 寫進 GitHub Actions secrets。之後要輪替時，重跑同一個指令即可。
+`.p8` 放在 `~/.omi-release/`（或下載資料夾）會自動找到；簽章私鑰第一次自動產生並備份在同一處。兩個 token 不用在終端機貼上：照提示複製好按 Enter，腳本直接讀剪貼簿、立刻打 API 驗證，讀完清掉剪貼簿（Windows 終端機的 Ctrl+V 常常無效，所以這樣設計）。它會先用 API 唯讀確認 key 可用，再透過 Codemagic API 建立／更新兩個群組（全部 Secret），並用 `gh secret set` 寫進 GitHub Actions secrets。之後要輪替時，重跑同一個指令即可。
 
 非秘密設定集中在 [tool/release/config.json](../../tool/release/config.json)：Bundle ID、內部／外部群組名稱、What to Test 文字。改 Bundle ID 時 Xcode 專案也要一起改，預檢會比對。
 
