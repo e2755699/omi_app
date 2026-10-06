@@ -273,6 +273,37 @@ class SetupSecretsTest(unittest.TestCase):
         self.assertFalse(any("value-" in line for line in done))  # 回報只有名稱，不含值
 
 
+class PendingSubmissionTest(unittest.TestCase):
+    @staticmethod
+    def build(number, hour, state):
+        return {"id": f"b{number}", "version": "1.0.0", "build_number": str(number),
+                "uploaded": f"2026-10-06T{hour:02d}:00:00+00:00", "state": state}
+
+    def test_waits_while_another_build_is_in_review(self):
+        builds = [self.build(2, 10, "READY_FOR_BETA_SUBMISSION"), self.build(1, 8, "WAITING_FOR_BETA_REVIEW")]
+        self.assertIsNone(asc.pending_submission(builds))
+
+    def test_submits_newest_after_review_finished(self):
+        builds = [self.build(3, 11, "READY_FOR_BETA_SUBMISSION"), self.build(2, 10, "READY_FOR_BETA_SUBMISSION"),
+                  self.build(1, 8, "BETA_APPROVED")]
+        self.assertEqual(asc.pending_submission(builds)["build_number"], "3")
+
+    def test_does_not_submit_builds_older_than_the_approved_one(self):
+        builds = [self.build(2, 10, "IN_BETA_TESTING"), self.build(1, 8, "READY_FOR_BETA_SUBMISSION")]
+        self.assertIsNone(asc.pending_submission(builds))
+
+    def test_nothing_pending(self):
+        self.assertIsNone(asc.pending_submission([self.build(1, 8, "IN_BETA_TESTING")]))
+
+    def test_notice_explains_one_review_at_a_time(self):
+        text = report.external_text({"status": "blocked", "error": "HTTP 422: ENTITY_UNPROCESSABLE.ANOTHER_BUILD_IN_REVIEW: ..."})
+        self.assertIn("自動補送", text)
+        self.assertNotIn("沒填齊", text)
+        _, body = report.compose_external({}, {"version": "1.0.0", "build_number": "2", "status": "resubmitted",
+                                               "state": "WAITING_FOR_BETA_REVIEW"})
+        self.assertIn("📨 已補送外部 Beta 審查：1.0.0 (2)", body)
+
+
 class ShorebirdSetupTest(unittest.TestCase):
     def test_existing_app_is_reused(self):
         import setup_secrets

@@ -517,6 +517,24 @@ def external_events(builds: list[dict], now: datetime, max_age_hours: int) -> li
     return events
 
 
+def pending_submission(builds: list[dict]) -> dict | None:
+    """要補送外部審查的 build：沒有任何 build 在審查中時，最新一個「還沒送審」且比已通過的都新的 build。
+
+    Apple 規定同一版本一次只能有一個 build 在 Beta 審查（ANOTHER_BUILD_IN_REVIEW），
+    所以審查中送不進去的新 build，要等審查結束再補送。builds 依上傳時間新到舊排列。
+    """
+    if any(classify_external(b["state"]) == "in_review" for b in builds):
+        return None
+    newest_ready = next((b for b in builds if classify_external(b["state"]) == "ready"), None)
+    for build in builds:
+        if build["state"] == "READY_FOR_BETA_SUBMISSION":
+            if newest_ready and (datetime.fromisoformat(build["uploaded"])
+                                 <= datetime.fromisoformat(newest_ready["uploaded"])):
+                return None
+            return build
+    return None
+
+
 def external_watch(args) -> int:
     client = AscClient.from_env()
     app = find_app(client, CONFIG["bundle_id"])
@@ -534,9 +552,18 @@ def external_watch(args) -> int:
             continue
         state = client.get(f"/v1/builds/{build['id']}/buildBetaDetail")["data"]["attributes"].get("externalBuildState")
         version = client.get(f"/v1/builds/{build['id']}/preReleaseVersion")["data"]["attributes"]["version"]
-        builds.append({"version": version, "build_number": build["attributes"]["version"],
+        builds.append({"id": build["id"], "version": version, "build_number": build["attributes"]["version"],
                        "uploaded": uploaded, "state": state})
     events = external_events(builds, now, args.max_age_hours)
+
+    if args.submit_pending and (pending := pending_submission(builds)):
+        group, _ = ensure_external_group(client, app["id"], CONFIG["external_group"])
+        result = distribute_external(client, pending["id"], group["id"], CONFIG["beta_locale"], CONFIG["what_to_test"])
+        print(f"補送外部審查 {pending['version']} ({pending['build_number']})：{result}")
+        events.append({**pending, "status": "resubmitted" if result["status"] != "blocked" else "blocked",
+                       "state": result.get("state", pending["state"]), "error": result.get("error", "")})
+    for event in events:
+        event.pop("id", None)
     text = json.dumps(events, ensure_ascii=False, indent=2)
     print(text)
     if args.out:
@@ -565,6 +592,8 @@ def main(argv: list[str] | None = None) -> int:
 
     w = sub.add_parser("external-watch", help="列出最近外部測試審查有結果（或逾時）的 build")
     w.add_argument("--max-age-hours", type=int, default=72)
+    w.add_argument("--submit-pending", action="store_true",
+                   help="沒有 build 在審查中時，把最新還沒送審的 build 補送外部測試")
     w.add_argument("--out", help="事件 JSON 寫到這裡")
     w.set_defaults(func=external_watch)
 

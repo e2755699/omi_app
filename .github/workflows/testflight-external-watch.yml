@@ -1,4 +1,5 @@
 # 每小時看一次最近送 Beta 審查的 build：通過、被拒、或超過 72 小時沒結果，就在「📦 iOS 發布通知」issue 留言。
+# 沒有 build 在審查中時，把最新還沒送審的 build 補送外部測試（Apple 同版本一次只收一個審查）。
 # 同一個結果只留一次（留言裡有去重標記）；沒有送審中的 build 時幾秒就結束。
 # 公開連結不會貼出來（這是公開 repo），請到 App Store Connect → TestFlight → 外部測試群組拿。
 name: TestFlight external review watch
@@ -42,7 +43,7 @@ jobs:
             echo "還沒設定 App Store Connect secrets，略過"
             exit 0
           fi
-          python tool/release/asc.py external-watch --max-age-hours 72 --out external-events.json
+          python tool/release/asc.py external-watch --max-age-hours 72 --submit-pending --out external-events.json
 
       - name: 通知
         env:

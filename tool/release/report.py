@@ -44,9 +44,19 @@ EXTERNAL_TEXT = {
     "submitted": "已送 Beta 審查，結果出來會再通知（通常數小時到一天）",
     "ready": "外部測試可用",
     "failed": "Beta 審查未通過",
-    "blocked": "沒有送出：多半是 TestFlight 測試資訊沒填齊",
+    "blocked": "沒有送出：Apple 拒絕送審，原因見後面",
     "unknown": "無法確認",
 }
+
+
+def external_text(external: dict) -> str:
+    error = external.get("error", "")
+    if "ANOTHER_BUILD_IN_REVIEW" in error:
+        return "還沒送：同版本已有 build 在 Beta 審查中（Apple 一次只收一個）。審查結束後，每小時的排程會自動補送最新的 build"
+    text = EXTERNAL_TEXT.get(external.get("status"), external.get("status", ""))
+    if external.get("status") == "blocked" and ("betaAppReviewDetail" in error or "contact" in error.lower()):
+        text = "沒有送出：TestFlight 測試資訊沒填齊"
+    return text + (f"（`{error}`）" if error else "")
 
 
 def compose_external(env: dict, event: dict) -> tuple[str, str]:
@@ -56,6 +66,8 @@ def compose_external(env: dict, event: dict) -> tuple[str, str]:
     title = {
         "ready": f"🎉 外部測試可用：{label}——拿公開連結的人現在可以安裝了",
         "failed": f"❌ Beta 審查未通過：{label}",
+        "resubmitted": f"📨 已補送外部 Beta 審查：{label}（上一個審查結束了，換最新的 build）",
+        "blocked": f"⚠️ 補送外部 Beta 審查失敗：{label}——{external_text(event)}",
     }.get(status, f"❓ Beta 審查超過期限仍沒有結果：{label}")
     repo = env.get("GITHUB_REPOSITORY", "")
     run_url = f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo}/actions/runs/{env.get('GITHUB_RUN_ID', '')}"
@@ -127,8 +139,7 @@ def compose(env: dict, result: dict | None) -> tuple[str, str]:
         if details:
             rows.append(("細節", "`" + json.dumps(details, ensure_ascii=False) + "`"))
         if external := result.get("external"):
-            rows.append(("外部測試", EXTERNAL_TEXT.get(external.get("status"), external.get("status", ""))
-                         + (f"（`{external['error']}`）" if external.get("error") else "")))
+            rows.append(("外部測試", external_text(external)))
         rows.append(("查驗時間 (UTC)", result.get("checked_at", "")))
 
     if patch:
