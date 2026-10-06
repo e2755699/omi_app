@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import re
 import subprocess
@@ -112,8 +113,9 @@ def clear_clipboard() -> None:
 def ask_token(title: str, how: str, check) -> str:
     print(f"\n{title}\n   {how}")
     while True:
-        input("   複製好之後按 Enter：")
-        value = read_clipboard()
+        # 用 getpass：就算使用者在這裡貼上也不會顯示在畫面上；有貼就用貼的，沒貼就讀剪貼簿
+        typed = getpass.getpass("   複製好之後按 Enter（不顯示、不用貼上）：").strip()
+        value = typed or read_clipboard()
         problem = check(value) if value else "剪貼簿是空的"
         if not problem:
             clear_clipboard()

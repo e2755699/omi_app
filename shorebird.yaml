@@ -1,0 +1,3 @@
+# Shorebird code push 設定（shorebird init 的格式）。app_id 不是秘密，可以進版控。
+# https://docs.shorebird.dev
+app_id: 7035c07e-9df6-4854-8465-9d01cbef2a42
