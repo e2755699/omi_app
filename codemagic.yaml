@@ -1,4 +1,4 @@
-# iOS 發布：推 tag v<版本>（例如 v1.0.0）→ 預檢 → 品質檢查 → 自動簽章 → 打包 → 上傳 App Store Connect。
+# iOS 發布：推 tag v<版本> 或 v<版本>-beta<數字>（例如 v1.0.0-beta2）→ 預檢 → 品質檢查 → 自動簽章 → 打包 → 上傳 App Store Connect。
 # 上傳後由 GitHub Actions（.github/workflows/ios-release-report.yml）查驗 TestFlight 內測可用並通知。
 # 說明、需要的秘密與排錯：docs/release/ios-release.md
 workflows:

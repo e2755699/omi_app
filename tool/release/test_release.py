@@ -279,6 +279,12 @@ class HelpersTest(unittest.TestCase):
         self.assertEqual(asc.next_build_number(12, 5), 13)
         self.assertEqual(asc.next_build_number(3, 9), 9)
 
+    def test_release_tags(self):
+        for tag in ("v1.0.0", "v1.0.0-beta1", "v1.0.0-beta12"):
+            self.assertTrue(asc.tag_matches_version(tag, "1.0.0"), tag)
+        for tag in ("v1.0.1-beta1", "v1.0.0beta1", "v1.0.0-beta", "v1.0.0-rc1", "1.0.0-beta1", "v1.0.0.1"):
+            self.assertFalse(asc.tag_matches_version(tag, "1.0.0"), tag)
+
     def test_project_files_match_release_config(self):
         self.assertRegex(asc.read_pubspec_version(), r"^\d+\.\d+\.\d+$")
         self.assertEqual(asc.read_app_bundle_ids(), {asc.CONFIG["bundle_id"]})

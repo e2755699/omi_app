@@ -21,7 +21,7 @@ flutter run
 
 ## 發布 iOS（TestFlight）
 
-改好 `pubspec.yaml` 的版本後推 tag `v<版本>`（例如 `git push origin v1.0.0`）：Codemagic 建置、簽章、上傳 → GitHub Actions 查驗 TestFlight 內測可用 → 在「📦 iOS 發布通知」issue 留言通知。
+推 tag `v<版本>-beta<數字>`（例如 `git tag v1.0.0-beta2 && git push origin v1.0.0-beta2`；版本號不變時一天可以發很多次）：Codemagic 建置、簽章、上傳 → GitHub Actions 查驗 TestFlight 內測可用 → 在「📦 iOS 發布通知」issue 留言通知。
 
 - 流程、需要的秘密、排錯：[docs/release/ios-release.md](docs/release/ios-release.md)
 - 商店資料與送審準備：[docs/release/app-store-listing.md](docs/release/app-store-listing.md)

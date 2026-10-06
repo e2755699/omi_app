@@ -274,6 +274,11 @@ def read_pubspec_version(path: Path = ROOT / "pubspec.yaml") -> str:
     return match.group(1)
 
 
+def tag_matches_version(tag: str, version: str) -> bool:
+    """發布 tag：v1.0.0（正式）或 v1.0.0-beta3（同版本的測試 build，可以一直加）。"""
+    return re.fullmatch(rf"v{re.escape(version)}(-beta[0-9]+)?", tag) is not None
+
+
 def read_app_bundle_ids(path: Path = ROOT / "ios/Runner.xcodeproj/project.pbxproj") -> set[str]:
     ids = set(re.findall(r"PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);", path.read_text(encoding="utf-8")))
     return {i.strip('"') for i in ids if not i.endswith(".RunnerTests")}
@@ -288,8 +293,8 @@ def preflight(args) -> int:
 
     version = read_pubspec_version()
     tag = os.environ.get("CM_TAG", "")
-    if tag and tag != f"v{version}":
-        problems.append(f"tag {tag} 和 pubspec 版本 {version} 不一致（應該是 v{version}）")
+    if tag and not tag_matches_version(tag, version):
+        problems.append(f"tag {tag} 和 pubspec 版本 {version} 不一致（應該是 v{version} 或 v{version}-beta數字）")
     project_ids = read_app_bundle_ids()
     if project_ids != {bundle_id}:
         problems.append(f"Xcode 專案的 Bundle ID {sorted(project_ids)} 和 tool/release/config.json 的 {bundle_id} 不一致")

@@ -5,14 +5,18 @@
 
 ## 怎麼發布（單一入口）
 
+**平常加功能（測試版，一天可以很多次）**：版本號維持不動，tag 後面加 `-beta數字`，每次加一：
+
 ```bash
-# 1. pubspec.yaml 的 version 改成要發的版本（build 號不用管，CI 會配）
-# 2. commit 後打 tag，tag 一定要是 v<版本>
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.0-beta2
+git push origin v1.0.0-beta2
 ```
 
-推 tag 之後全自動：Codemagic 建置上傳 → GitHub Actions 查驗內測可用 → 送外部測試（Beta 審查）→ 「📦 iOS 發布通知」issue 留言（GitHub 寄信給你）→ 審查有結果時再留言一次。
+同一個版本號只有第一個 build 要完整 Beta 審查（1.0.0 已送審）；之後的 build 通常不用再完整審查，外部測試很快就能更新。build 號 CI 會自動配，不用管。
+
+**要換版本時**（例如 1.0.1）：改 `pubspec.yaml` 的 `version`，再打 `v1.0.1` 或 `v1.0.1-beta1`。新版本號的第一個 build 會再經一次 Beta 審查。
+
+tag 必須是 `v<pubspec 版本>` 或 `v<pubspec 版本>-beta<數字>`，不符會在預檢擋下。推 tag 之後全自動：Codemagic 建置上傳 → GitHub Actions 查驗內測可用 → 送外部測試 → 「📦 iOS 發布通知」issue 留言（GitHub 寄信給你）→ 外部審查有結果時再留言一次。
 
 也可以在 Codemagic 手動 Start new build（workflow `iOS → TestFlight`、任意 branch），版本照 pubspec。
 
