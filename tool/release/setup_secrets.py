@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """一次把 iOS 發布需要的秘密放進 Codemagic 和 GitHub（由帳號擁有者在自己電腦執行）。
 
-  python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID> --p8 <AuthKey_xxx.p8 位置>
+  python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>      # 全部（第一次）
+  python tool/release/setup_secrets.py --only github,shorebird                      # 只換 GitHub token／Shorebird key
 
 不是秘密的值用參數帶進來；兩個 token 不用貼上：照提示複製好按 Enter，腳本直接從剪貼簿讀
 （讀完就清掉剪貼簿，不顯示、不存檔、不印出），並馬上打 API 確認是對的 token。
@@ -31,6 +32,7 @@ GROUPS = {
     "app_store_connect": ["APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_KEY_IDENTIFIER",
                           "APP_STORE_CONNECT_PRIVATE_KEY", "CERTIFICATE_PRIVATE_KEY"],
     "github_report": ["GITHUB_DISPATCH_TOKEN"],
+    "shorebird": ["SHOREBIRD_TOKEN"],
 }
 GITHUB_SECRETS = ["APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_KEY_IDENTIFIER", "APP_STORE_CONNECT_PRIVATE_KEY"]
 RELEASE_DIR = Path.home() / ".omi-release"
@@ -55,7 +57,10 @@ def upsert_codemagic(call, app_id: str, values: dict[str, str]) -> list[str]:
     """建立缺少的群組，變數已存在就更新、沒有就匯入；全部設為 Secret。回傳做過的事（只有名稱）。"""
     done = []
     groups = {g["name"]: g["id"] for g in call("GET", f"/apps/{app_id}/variable-groups?page_size=100")["data"]}
-    for group_name, names in GROUPS.items():
+    for group_name, all_names in GROUPS.items():
+        names = [name for name in all_names if name in values]  # 只更新這次有給的
+        if not names:
+            continue
         group_id = groups.get(group_name)
         if group_id is None:
             group_id = call("POST", f"/apps/{app_id}/variable-groups", {"name": group_name})["data"]["id"]
@@ -176,40 +181,102 @@ def signing_key() -> str:
     return pem
 
 
+SHOREBIRD_API = "https://api.shorebird.dev/api/v1"
+SHOREBIRD_YAML = Path(__file__).resolve().parents[2] / "shorebird.yaml"
+
+
+def shorebird_call(token: str, method: str, path: str, body: dict | None = None):
+    req = urllib.request.Request(SHOREBIRD_API + path, method=method,
+                                 data=json.dumps(body).encode() if body is not None else None)
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        raw = resp.read()
+        return json.loads(raw) if raw else None
+
+
+def check_shorebird(token: str) -> str | None:
+    if not token.startswith("sb_api_"):
+        return "這不像 Shorebird API key（應該是 sb_api_ 開頭）"
+    try:
+        shorebird_call(token, "GET", "/users/me")
+    except urllib.error.HTTPError as error:
+        return f"Shorebird 不接受這個 key（HTTP {error.code}）"
+    return None
+
+
+def ensure_shorebird_app(call, display_name: str) -> tuple[str, bool]:
+    """找同名的 Shorebird App，沒有就在第一個組織建一個。回傳（app_id, 是否新建）。"""
+    apps = call("GET", "/apps")["apps"]
+    existing = next((a for a in apps if a["display_name"] == display_name), None)
+    if existing:
+        return existing["app_id"], False
+    orgs = call("GET", "/organizations")["organizations"]
+    if not orgs:
+        sys.exit("   ✗ Shorebird 帳號沒有組織，請先在 console.shorebird.dev 完成註冊")
+    created = call("POST", "/apps", {"display_name": display_name, "organization_id": orgs[0]["organization"]["id"]})
+    return created["id"], True
+
+
+def write_shorebird_yaml(app_id: str) -> None:
+    """等同 shorebird init 產生的檔案（app_id 不是秘密，可以進版控）。"""
+    SHOREBIRD_YAML.write_text(
+        "# Shorebird code push 設定（shorebird init 的格式）。app_id 不是秘密，可以進版控。\n"
+        "# https://docs.shorebird.dev\n"
+        f"app_id: {app_id}\n", encoding="utf-8")
+
+
+PARTS = ("apple", "github", "shorebird")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--issuer-id", required=True)
-    parser.add_argument("--key-id", required=True)
+    parser.add_argument("--only", default=",".join(PARTS),
+                        help="只更新這幾項（逗號分隔）：apple、github、shorebird。例如 --only github,shorebird")
+    parser.add_argument("--issuer-id", help="apple 需要")
+    parser.add_argument("--key-id", help="apple 需要")
     parser.add_argument("--p8", help="AuthKey_<Key ID>.p8 的位置；省略時在 ~/.omi-release 和下載資料夾找")
     args = parser.parse_args(argv)
+    parts = {p.strip() for p in args.only.split(",") if p.strip()}
+    if not parts <= set(PARTS):
+        parser.error(f"--only 只能是 {', '.join(PARTS)}")
+    if "apple" in parts and not (args.issuer_id and args.key_id):
+        parser.error("更新 apple 需要 --issuer-id 和 --key-id")
     config = asc.CONFIG
+    values: dict[str, str] = {}
 
     print("== iOS 發布秘密設定 ==")
-    p8 = find_p8(args.p8, args.key_id)
-    private_key = read_pem(p8, " App Store Connect 的 .p8")
-    print(f"\nApp Store Connect key：{args.key_id}（{p8}）")
-    try:
-        app = asc.find_app(asc.AscClient(args.issuer_id, args.key_id, private_key), config["bundle_id"])
-    except (asc.AuthError, asc.ApiError) as error:
-        sys.exit(f"   ✗ API key 無法使用：{error}")
-    print(f"   ✓ 可以用（{'找到' if app else '還沒建立'} {config['bundle_id']}）")
-
-    cert_key = signing_key()
+    if "apple" in parts:
+        p8 = find_p8(args.p8, args.key_id)
+        private_key = read_pem(p8, " App Store Connect 的 .p8")
+        print(f"\nApp Store Connect key：{args.key_id}（{p8}）")
+        try:
+            app = asc.find_app(asc.AscClient(args.issuer_id, args.key_id, private_key), config["bundle_id"])
+        except (asc.AuthError, asc.ApiError) as error:
+            sys.exit(f"   ✗ API key 無法使用：{error}")
+        print(f"   ✓ 可以用（{'找到' if app else '還沒建立'} {config['bundle_id']}）")
+        values.update({
+            "APP_STORE_CONNECT_ISSUER_ID": args.issuer_id,
+            "APP_STORE_CONNECT_KEY_IDENTIFIER": args.key_id,
+            "APP_STORE_CONNECT_PRIVATE_KEY": private_key,
+            "CERTIFICATE_PRIVATE_KEY": signing_key(),
+        })
 
     cm_token = ask_token("Codemagic API token",
                          "到 https://codemagic.io/settings →「API token」按 Show → 複製",
                          check_codemagic(config["codemagic_app_id"]))
-    gh_token = ask_token("GitHub token",
-                         "在剛剛 GitHub 產生 token 的頁面按複製（github_pat_ 開頭）",
-                         check_github(config["github_repo"]))
-
-    values = {
-        "APP_STORE_CONNECT_ISSUER_ID": args.issuer_id,
-        "APP_STORE_CONNECT_KEY_IDENTIFIER": args.key_id,
-        "APP_STORE_CONNECT_PRIVATE_KEY": private_key,
-        "CERTIFICATE_PRIVATE_KEY": cert_key,
-        "GITHUB_DISPATCH_TOKEN": gh_token,
-    }
+    if "github" in parts:
+        values["GITHUB_DISPATCH_TOKEN"] = ask_token(
+            "GitHub token", "在 GitHub 產生（或 Regenerate）token 的頁面按複製（github_pat_ 開頭）",
+            check_github(config["github_repo"]))
+    if "shorebird" in parts:
+        sb_token = ask_token("Shorebird API key", "在 Shorebird Console 建立 API key 後按複製（sb_api_ 開頭）",
+                             check_shorebird)
+        app_id, created = ensure_shorebird_app(lambda *a: shorebird_call(sb_token, *a), config["shorebird_app_name"])
+        write_shorebird_yaml(app_id)
+        print(f"   ✓ Shorebird App「{config['shorebird_app_name']}」{'已建立' if created else '已存在'}，"
+              f"寫入 {SHOREBIRD_YAML.name}（記得 commit）")
+        values["SHOREBIRD_TOKEN"] = sb_token
 
     print("\n寫進 Codemagic…")
     try:
@@ -219,8 +286,10 @@ def main(argv: list[str] | None = None) -> int:
     for line in done:
         print(f"   ✓ {line}")
 
-    print("\n寫進 GitHub Actions secrets…")
-    for name in GITHUB_SECRETS:
+    names = [name for name in GITHUB_SECRETS if name in values]
+    if names:
+        print("\n寫進 GitHub Actions secrets…")
+    for name in names:
         result = subprocess.run(["gh", "secret", "set", name, "--repo", config["github_repo"]],
                                 input=values[name], text=True, capture_output=True)
         if result.returncode != 0:

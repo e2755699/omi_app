@@ -3,47 +3,49 @@
 > 狀態（2026-10-06）：**第一次真實發布 1.0.0 (1) 已內測可用，外部測試已送 Beta 審查**（等 Apple 結果）。Codemagic → GitHub 的自動觸發因 token 無效失敗，該次改用 `gh` 手動補查；換好 token 後再驗一次。細節見「驗收矩陣」。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
-## 怎麼發布（單一入口）
+## 怎麼發布
 
-**平常加功能（測試版，一天可以很多次）**：版本號維持不動，tag 後面加 `-beta數字`，每次加一：
+| 改了什麼 | 打什麼 tag | 結果 |
+| --- | --- | --- |
+| 只有 Dart 程式碼（大部分功能） | `patch-<數字>`，例如 `patch-3`（數字每次加一） | Shorebird patch，約 10 分鐘；夥伴重開 App 會在背景下載，下次開啟生效。不經過 Apple |
+| 原生程式（`ios/`、`android/`）、新增帶原生程式的套件、圖片／字型等資源、Info.plist | `v<新版本>`，例如 `v1.0.1`（先改 `pubspec.yaml` 的 `version`） | Shorebird release 打包 → TestFlight 內測 → 自動送外部測試（新版本號第一次要 Beta 審查） |
 
 ```bash
-git tag v1.0.0-beta2
-git push origin v1.0.0-beta2
+git tag patch-3
+git push origin patch-3
 ```
 
-同一個版本號只有第一個 build 要完整 Beta 審查（1.0.0 已送審）；之後的 build 通常不用再完整審查，外部測試很快就能更新。build 號 CI 會自動配，不用管。
-
-**要換版本時**（例如 1.0.1）：改 `pubspec.yaml` 的 `version`，再打 `v1.0.1` 或 `v1.0.1-beta1`。新版本號的第一個 build 會再經一次 Beta 審查。
-
-tag 必須是 `v<pubspec 版本>` 或 `v<pubspec 版本>-beta<數字>`，不符會在預檢擋下。推 tag 之後全自動：Codemagic 建置上傳 → GitHub Actions 查驗內測可用 → 送外部測試 → 「📦 iOS 發布通知」issue 留言（GitHub 寄信給你）→ 外部審查有結果時再留言一次。
-
-也可以在 Codemagic 手動 Start new build（workflow `iOS → TestFlight`、任意 branch），版本照 pubspec。
-
-**不會**自動送 App Store 正式審查或公開上架。
+- patch 一律套用到**最新的 release**。Shorebird 偵測到原生程式或資源檔有變會擋下來，這時改發新版本 tag。
+- tag 必須是 `v<pubspec 版本>`（新版本）或 `patch-<數字>`（patch），不符會被擋下。
+- 第一次啟用 Shorebird 時要先打一次 `v1.0.0`，產生可以被 patch 的基底版（1.0.0 (2)）。
+- 也可以在 Codemagic 手動 Start new build（workflow `iOS → TestFlight` 或 `iOS patch`）。
+- **不會**自動送 App Store 正式審查或公開上架。
 
 ## 資料流
 
 ```
-git push tag v1.0.0
-  │
-  ▼
-Codemagic（mac_mini_m2，codemagic.yaml）
-  1 預檢     tool/release/asc.py preflight：API 授權、Bundle ID、App、內部群組、tag=版本、配 build 號；
-             外部群組沒有就建（開公開連結），測試資訊缺什麼只發警告
-  2 品質檢查 flutter analyze / flutter test / 發布工具測試
-  3 簽章     app-store-connect fetch-signing-files --create（沿用既有 Distribution 憑證，沒有才建）
-  4 建置     flutter build ipa
-  5 上傳     app-store-connect publish（只上傳，不占 Mac 等 Apple 處理）
+git push tag v1.0.1                              git push tag patch-3
+  │                                                │
+  ▼                                                ▼
+Codemagic ios-testflight（mac_mini_m2）           Codemagic ios-patch（mac_mini_m2）
+  0 準備：發布工具、安裝 Shorebird                  0 準備：發布工具、安裝 Shorebird
+  1 預檢 asc.py preflight：API 授權、Bundle ID、     1 品質檢查 analyze／test／發布工具測試
+    App、群組、tag=版本、配 build 號；外部群組沒有    2 shorebird patch ios --release-version=latest
+    就建、測試資訊缺什麼只警告                          --no-codesign（只送 Dart 差異，不需簽章）
+  2 品質檢查 analyze／test／發布工具測試               → 擷取 release 版本與 patch 編號
+  3 簽章 fetch-signing-files --create（沿用憑證）
+  4 建置 shorebird release ios（--build-name/number）
+  5 上傳 app-store-connect publish（只上傳）
   └ publishing script（成功失敗都跑）→ workflow_dispatch ios-release-report.yml（ref=master）
   │
   ▼
 GitHub Actions：ios-release-report.yml（ubuntu）
-  - asc.py verify --external：有限退避查 Apple（30 秒到 5 分鐘一次，最多 90 分鐘）
+  - outcome=uploaded：asc.py verify --external 有限退避查 Apple（30 秒到 5 分鐘一次，最多 90 分鐘）
       內測成功條件：指定 App＋版本＋build、processingState=VALID、未過期、
                    internalBuildState=IN_BETA_TESTING、「Omi Internal」包含此 build
       內測可用後：設定 What to Test → 加入「Omi 夥伴」→ 送 Beta App Review（已送過不重送）
-  - report.py 留言（@擁有者 → GitHub 寄信）；內測不是 ready 時 run 失敗 → 另一封 Actions 失敗信
+  - outcome=patched：不查 Apple，直接留言「🩹 Patch N 已發布」
+  - report.py 留言（@擁有者 → GitHub 寄信）；不是 ready 時 run 失敗 → 另一封 Actions 失敗信
   │
   ▼
 GitHub Actions：testflight-external-watch.yml（每小時）
@@ -52,12 +54,13 @@ GitHub Actions：testflight-external-watch.yml（每小時）
   - 同一結果只留言一次；公開連結不貼在公開 repo
 ```
 
-內測結果：`ready`（API 證實可用）、`failed`（Apple 明確拒絕或 CI 失敗沒上傳）、`unknown`（授權、網路、逾時、找不到 build）。外部測試另外標示：`submitted`、`ready`、`failed`、`blocked`（多半是測試資訊沒填齊，不會重送）。外部有問題不會蓋掉內測結果。
+內測結果：`ready`（API 證實可用）、`failed`（Apple 明確拒絕或 CI 失敗沒上傳）、`unknown`（授權、網路、逾時、找不到 build）。外部測試另外標示：`submitted`、`ready`、`failed`、`blocked`（多半是測試資訊沒填齊，不會重送）。外部有問題不會蓋掉內測結果。patch 的成功依據是 Shorebird CLI 回報「Published Patch N」。
 
 ## 版本與 build 號
 
-- 版本 ＝ `pubspec.yaml` 的 `x.y.z`；用 tag 觸發時 tag 必須是 `v<x.y.z>`，不符就在預檢擋下。
-- build 號 ＝ max(Apple 上這個 App 用過的最大 build 號 + 1, Codemagic `$BUILD_NUMBER`)。
+- 版本 ＝ `pubspec.yaml` 的 `x.y.z`；新版本 tag 必須是 `v<x.y.z>`。
+- build 號 ＝ max(Apple 上這個 App 用過的最大 build 號 + 1, Codemagic `$BUILD_NUMBER`)；Shorebird 的 release 版本記成 `x.y.z+build`。
+- patch 編號由 Shorebird 自動遞增；`patch-<數字>` 的數字只是給人看的 tag 名稱，不必等於 patch 編號。
 - Codemagic 免費方案一次只跑一個 build，不會撞號。
 
 ## 簽章模式
@@ -77,6 +80,7 @@ GitHub Actions：testflight-external-watch.yml（每小時）
 | `APP_STORE_CONNECT_PRIVATE_KEY` | 同上 | `omi-ci` 的 `.p8` 全文 |
 | `CERTIFICATE_PRIVATE_KEY` | Codemagic 群組 `app_store_connect` | Omi 專屬簽章私鑰 PEM（RSA 2048） |
 | `GITHUB_DISPATCH_TOKEN` | Codemagic 群組 `github_report` | fine-grained token，只限 `e2755699/omi_app`，Actions: Read and write |
+| `SHOREBIRD_TOKEN` | Codemagic 群組 `shorebird` | Shorebird Console → Account → API Keys（`sb_api_` 開頭，免費方案只有 Full access） |
 
 Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀不回，所以不能引用黃絲帶的 `yellow_ribbon_ci`。
 
@@ -86,9 +90,17 @@ Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀�
 python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 ```
 
+只換其中幾項時用 `--only`（例如換 GitHub token、加 Shorebird key）：
+
+```bash
+python tool/release/setup_secrets.py --only github,shorebird
+```
+
+Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，並在 repo 根目錄寫出 `shorebird.yaml`（app_id 不是秘密，要 commit；`pubspec.yaml` 的 assets 也要列入它）。
+
 `.p8` 放在 `~/.omi-release/`（或下載資料夾）會自動找到；簽章私鑰第一次自動產生並備份在同一處。兩個 token 不用在終端機貼上：照提示複製好按 Enter，腳本直接讀剪貼簿、立刻打 API 驗證，讀完清掉剪貼簿（Windows 終端機的 Ctrl+V 常常無效，所以這樣設計）。它會先用 API 唯讀確認 key 可用，再透過 Codemagic API 建立／更新兩個群組（全部 Secret），並用 `gh secret set` 寫進 GitHub Actions secrets。之後要輪替時，重跑同一個指令即可。
 
-非秘密設定集中在 [tool/release/config.json](../../tool/release/config.json)：Bundle ID、內部／外部群組名稱、What to Test 文字。改 Bundle ID 時 Xcode 專案也要一起改，預檢會比對。
+非秘密設定集中在 [tool/release/config.json](../../tool/release/config.json)：Bundle ID、內部／外部群組名稱、What to Test 文字、Shorebird App 名稱、Codemagic app id。改 Bundle ID 時 Xcode 專案也要一起改，預檢會比對。
 
 ## 設定進度
 
@@ -104,6 +116,7 @@ python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 | App Store Connect API key `omi-ci` | ✅ App 管理權限，Key ID `Y756B38PS2`；`.p8` 在擁有者的 `~/.omi-release/` |
 | Codemagic 變數群組、GitHub Actions secrets | ✅ 2026-10-06 由 `setup_secrets.py` 寫入 |
 | `GITHUB_DISPATCH_TOKEN` | ⚠️ 存進去的值無效（舊版腳本沒驗證、終端機貼上失敗），且 token 曾出現在截圖中 → 擁有者 Regenerate 後重跑新版 `setup_secrets.py` |
+| Shorebird（帳號、API key、App、`shorebird.yaml`） | 待擁有者：Google 登入 Shorebird Console → 建 API key → `setup_secrets.py --only github,shorebird` → 打 `v1.0.0` 產生基底版 |
 
 ## 排錯與重試
 
@@ -158,6 +171,7 @@ python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 | 逾時 → unknown；找不到 build → unknown | 模擬通過 | `test_deadline_*`、`test_missing_build_*` |
 | Codemagic 回報腳本 payload／錯誤訊息 | 本機模擬通過（假 curl：204／401／503） | 2026-10-06 |
 | 通知真的寄到信箱 | issue 留言已送出（@擁有者）；**收件未確認** | issue #1 |
+| Shorebird release（基底版）／patch → 通知 | 已配置；patch 輸出擷取與通知文字模擬通過，**未實跑** | `ShorebirdSetupTest.*`、`test_patch_*`、本機模擬 patch log |
 | build 取消／逾時 | **不支援** | — |
 
 待補：擁有者確認收到通知信；換好 token 後一次 tag 觸發的完整自動流程；Beta 審查結果與外部通知。

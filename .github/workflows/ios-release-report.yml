@@ -1,6 +1,7 @@
 # Codemagic 的 iOS 發布結束後（成功或失敗）會觸發這裡：
 # 上傳成功 → 用 App Store Connect API 查驗「這個版本／build 真的在 TestFlight 內測可用」→
 # 內測可用後送外部測試（What to Test、外部群組、Beta 審查；審查結果由 testflight-external-watch.yml 通知）→
+# Shorebird patch 成功（outcome=patched）→ 直接留言「patch 已發布」。
 # 在「📦 iOS 發布通知」issue 留言（GitHub 會寄信）。結果不是 ready 時這個 run 會失敗，另有一封 Actions 失敗信。
 # 也可以在 Actions 頁面手動執行，補查某個 build。說明見 docs/release/ios-release.md。
 name: iOS release report
@@ -12,9 +13,9 @@ on:
         description: Codemagic 結果
         required: true
         type: choice
-        options: [uploaded, ci_failed]
+        options: [uploaded, patched, ci_failed]
       failed_phase:
-        description: CI 失敗在哪一步（preflight / gates / signing / build / upload）
+        description: CI 失敗在哪一步（setup / preflight / gates / signing / build / upload / patch）
         required: false
         default: ''
       version:
@@ -23,6 +24,10 @@ on:
         default: ''
       build_number:
         description: build 號，例如 7
+        required: false
+        default: ''
+      patch_number:
+        description: Shorebird patch 編號（只有 patch 才有）
         required: false
         default: ''
       source_ref:
@@ -47,7 +52,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: ios-release-report-${{ inputs.version }}-${{ inputs.build_number }}
+  group: ios-release-report-${{ inputs.version }}-${{ inputs.build_number }}-${{ inputs.patch_number }}
   cancel-in-progress: false
 
 jobs:
@@ -59,6 +64,7 @@ jobs:
       FAILED_PHASE: ${{ inputs.failed_phase }}
       VERSION: ${{ inputs.version }}
       BUILD_NUMBER: ${{ inputs.build_number }}
+      PATCH_NUMBER: ${{ inputs.patch_number }}
       SOURCE_REF: ${{ inputs.source_ref }}
       SOURCE_COMMIT: ${{ inputs.source_commit }}
       CODEMAGIC_BUILD_URL: ${{ inputs.codemagic_build_url }}
@@ -100,7 +106,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ios-release-result-${{ inputs.version }}-${{ inputs.build_number }}
+          name: ios-release-result-${{ inputs.version }}-${{ inputs.build_number }}-${{ inputs.patch_number }}
           path: release-result.json
           if-no-files-found: ignore
 

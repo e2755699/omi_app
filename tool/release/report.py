@@ -36,6 +36,7 @@ PHASE_TEXT = {
     "config": "App Store Connect 設定",
     "api": "App Store Connect API",
     "verifier": "查驗工作",
+    "patch": "Shorebird patch（只能含 Dart 修改；動到原生程式或資源檔要改發新版本）",
 }
 
 
@@ -72,9 +73,12 @@ def compose_external(env: dict, event: dict) -> tuple[str, str]:
 
 
 def final_status(outcome: str, result: dict | None) -> str:
-    """整體結果：ready / failed / unknown。成功只能來自 Apple API 查驗。"""
+    """整體結果：ready / failed / unknown。TestFlight 成功只能來自 Apple API 查驗；
+    patch 成功來自 Shorebird CLI 回報已發布（patch 不經過 Apple）。"""
     if result:
         return result.get("status", "unknown")
+    if outcome == "patched":
+        return "ready"
     return "failed" if outcome == "ci_failed" else "unknown"
 
 
@@ -83,10 +87,16 @@ def compose(env: dict, result: dict | None) -> tuple[str, str]:
     outcome = env.get("OUTCOME", "")
     status = final_status(outcome, result)
     version, build = env.get("VERSION") or "?", env.get("BUILD_NUMBER") or "?"
+    patch = env.get("PATCH_NUMBER", "")
     label = f"{version} ({build})"
     ci_phase = PHASE_TEXT.get(env.get("FAILED_PHASE", ""), env.get("FAILED_PHASE") or "未知步驟")
+    is_patch = outcome == "patched" or env.get("FAILED_PHASE") == "patch" or "patch-" in env.get("SOURCE_REF", "")
 
-    if outcome == "ci_failed" and status != "ready":
+    if outcome == "patched":
+        title = f"🩹 Patch {patch or '?'} 已發布到 {label}——夥伴重開 App 會在背景下載，下次開啟生效"
+    elif outcome == "ci_failed" and is_patch:
+        title = f"❌ Patch 失敗：{ci_phase} — 夥伴的 App 不會變"
+    elif outcome == "ci_failed" and status != "ready":
         if result:  # 上傳步驟失敗，但有去 Apple 查
             title = f"❌ CI 失敗：{ci_phase}（Apple 查驗：{status}）— {label} 沒有可用的新 build"
         else:
@@ -121,7 +131,9 @@ def compose(env: dict, result: dict | None) -> tuple[str, str]:
                          + (f"（`{external['error']}`）" if external.get("error") else "")))
         rows.append(("查驗時間 (UTC)", result.get("checked_at", "")))
 
-    key = f"{version}+{build}:{outcome}:{status}"
+    if patch:
+        rows.insert(1, ("Patch", f"#{patch}（Shorebird stable）"))
+    key = f"{version}+{build}{f'#patch{patch}' if patch else ''}:{outcome}:{status}"
     owner = env.get("GITHUB_REPOSITORY_OWNER", "")
     lines = [f"### {title}", "", "| 項目 | 內容 |", "| --- | --- |"]
     lines += [f"| {name} | {value} |" for name, value in rows]
@@ -197,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
     env = dict(os.environ)
     if args.external_events:
         return post_external_events(env, Path(args.external_events), args.dry_run)
-    for name, pattern in (("VERSION", r"[0-9]+\.[0-9]+\.[0-9]+"), ("BUILD_NUMBER", r"[0-9]+"),
+    for name, pattern in (("VERSION", r"[0-9]+\.[0-9]+\.[0-9]+"), ("BUILD_NUMBER", r"[0-9]+"), ("PATCH_NUMBER", r"[0-9]+"),
                           ("SOURCE_COMMIT", r"[0-9a-f]{7,40}")):
         if env.get(name) and not re.fullmatch(pattern, env[name]):
             print(f"::warning::{name} 格式不對，忽略：{env[name]!r}")

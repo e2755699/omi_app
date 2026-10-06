@@ -31,7 +31,7 @@
 ## iOS 上架（見 docs/release/）
 
 - [x] Codemagic → TestFlight 管線：1.0.0 (1) 已內測可用、已送外部 Beta 審查（2026-10-06）
-- [ ] GitHub token 換新（Regenerate）後重跑 setup_secrets.py；再用一次 tag 驗證全自動流程
+- [ ] 啟用 Shorebird：Console 建 API key＋GitHub token Regenerate → `setup_secrets.py --only github,shorebird` → commit shorebird.yaml → 打 `v1.0.0` 基底版 → 試 `patch-1`
 - [x] Bundle ID `com.jacklope.omiApp`、App Store Connect App、內部群組、Codemagic App（2026-10-06）
 - [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（已配置，待實跑）
 - [x] TestFlight 測試資訊（含回饋信箱、審查聯絡人）

@@ -1,9 +1,87 @@
-# iOS 發布：推 tag v<版本> 或 v<版本>-beta<數字>（例如 v1.0.0-beta2）→ 預檢 → 品質檢查 → 自動簽章 → 打包 → 上傳 App Store Connect。
-# 上傳後由 GitHub Actions（.github/workflows/ios-release-report.yml）查驗 TestFlight 內測可用並通知。
-# 說明、需要的秘密與排錯：docs/release/ios-release.md
+# iOS 發布（說明、秘密、排錯：docs/release/ios-release.md）
+#   tag v<版本>（例如 v1.0.1）→ ios-testflight：Shorebird release 打包 → 上傳 TestFlight（內測＋外部）
+#   tag patch-<數字>（例如 patch-3）→ ios-patch：Shorebird patch（只含 Dart 修改），夥伴重開 App 就更新
+# 結束後（成功失敗都一樣）通知 GitHub Actions（.github/workflows/ios-release-report.yml）查驗並在 issue 留言。
+
+definitions:
+  environment: &environment
+    groups:
+      # APP_STORE_CONNECT_ISSUER_ID / APP_STORE_CONNECT_KEY_IDENTIFIER / APP_STORE_CONNECT_PRIVATE_KEY / CERTIFICATE_PRIVATE_KEY
+      - app_store_connect
+      # GITHUB_DISPATCH_TOKEN（只能觸發本 repo Actions 的 fine-grained token）
+      - github_report
+      # SHOREBIRD_TOKEN（Shorebird Console 建的 API key）
+      - shorebird
+    vars:
+      GITHUB_REPO: e2755699/omi_app
+      FLUTTER_VERSION: 3.47.5
+    flutter: 3.47.5
+    xcode: '26.6'  # 和黃絲帶一致，確定可用；要升級時兩邊一起改（patch 要和正式 build 用同一版）
+    cocoapods: default
+
+  scripts:
+    - &tooling
+      name: 準備發布工具
+      script: |
+        set -euo pipefail
+        echo setup > "$HOME/release_phase"
+        python3 -m venv "$HOME/release-venv"
+        "$HOME/release-venv/bin/pip" install --quiet -r tool/release/requirements.txt
+        test -n "${SHOREBIRD_TOKEN:-}" || { echo "::error::沒有 SHOREBIRD_TOKEN（Codemagic 群組 shorebird）"; exit 1; }
+        test -f shorebird.yaml || { echo "::error::repo 沒有 shorebird.yaml（跑 setup_secrets.py --only shorebird 產生）"; exit 1; }
+        curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
+        echo "PATH=$HOME/.shorebird/bin:$PATH" >> "$CM_ENV"
+
+    - &gates
+      name: 品質檢查（analyze／test）
+      script: |
+        set -euo pipefail
+        echo gates > "$HOME/release_phase"
+        flutter pub get
+        flutter analyze
+        flutter test
+        "$HOME/release-venv/bin/python" -m unittest discover -s tool/release -p "test_*.py"
+
+  publishing: &report
+    scripts:
+      # 不論成功失敗都會執行（取消／逾時除外）：交給 GitHub Actions 查驗並通知。
+      - name: 回報 GitHub（查驗＋通知）
+        script: |
+          set -uo pipefail
+          if [ -f "$HOME/release_uploaded" ]; then OUTCOME=uploaded; PHASE=""
+          elif [ -f "$HOME/patch_published" ]; then OUTCOME=patched; PHASE=""
+          else OUTCOME=ci_failed; PHASE=$(cat "$HOME/release_phase" 2>/dev/null || echo setup); fi
+          echo "outcome=$OUTCOME phase=$PHASE version=${RELEASE_VERSION:-} build=${RELEASE_BUILD_NUMBER:-} patch=${PATCH_NUMBER:-}"
+          if [ -z "${GITHUB_DISPATCH_TOKEN:-}" ]; then
+            echo "⚠️ 沒有設定 GITHUB_DISPATCH_TOKEN：略過自動查驗與通知，請到 GitHub Actions 手動執行 ios-release-report"
+            exit 0
+          fi
+          PAYLOAD=$(OUTCOME="$OUTCOME" PHASE="$PHASE" python3 -c '
+          import json, os
+          e = os.environ
+          print(json.dumps({"ref": "master", "inputs": {
+              "outcome": e["OUTCOME"], "failed_phase": e["PHASE"],
+              "version": e.get("RELEASE_VERSION", ""), "build_number": e.get("RELEASE_BUILD_NUMBER", ""),
+              "patch_number": e.get("PATCH_NUMBER", ""),
+              "source_ref": e.get("CM_TAG") or e.get("CM_BRANCH", ""), "source_commit": e.get("CM_COMMIT", ""),
+              "codemagic_build_url": "https://codemagic.io/app/%s/build/%s" % (e.get("CM_PROJECT_ID", ""), e.get("CM_BUILD_ID", "")),
+          }}))')
+          # 只重試暫時性錯誤（逾時、429、5xx）；401/403/404 是 token 問題，重試沒用。
+          STATUS=$(curl -sS --retry 3 -o /tmp/dispatch.out -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GITHUB_DISPATCH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPO/actions/workflows/ios-release-report.yml/dispatches" \
+            -d "$PAYLOAD")
+          if [ "$STATUS" = 204 ]; then echo "已觸發 GitHub 查驗／通知"; exit 0; fi
+          echo "❌ 通知 GitHub 失敗（HTTP $STATUS）。$( [ "$OUTCOME" != ci_failed ] && echo '發布本身已成功。' )"
+          case "$STATUS" in 401|403|404) echo "GITHUB_DISPATCH_TOKEN 無效或權限不足 → 跑 tool/release/setup_secrets.py --only github 更新 token";; esac
+          echo "手動補查：gh workflow run ios-release-report.yml -f outcome=$OUTCOME -f failed_phase=$PHASE -f version=${RELEASE_VERSION:-} -f build_number=${RELEASE_BUILD_NUMBER:-} -f patch_number=${PATCH_NUMBER:-} -f source_commit=${CM_COMMIT:-}"
+          exit 1
+
 workflows:
   ios-testflight:
-    name: iOS → TestFlight
+    name: iOS → TestFlight（Shorebird release）
     instance_type: mac_mini_m2
     max_build_duration: 60
     triggering:
@@ -13,37 +91,19 @@ workflows:
         - pattern: 'v*'
           include: true
       cancel_previous_builds: false
-    environment:
-      groups:
-        # APP_STORE_CONNECT_ISSUER_ID / APP_STORE_CONNECT_KEY_IDENTIFIER / APP_STORE_CONNECT_PRIVATE_KEY / CERTIFICATE_PRIVATE_KEY
-        - app_store_connect
-        # GITHUB_DISPATCH_TOKEN（只能觸發本 repo Actions 的 fine-grained token）
-        - github_report
-      vars:
-        GITHUB_REPO: e2755699/omi_app
-      flutter: 3.47.5
-      xcode: '26.6'  # 和黃絲帶一致，確定可用；要升級時兩邊一起改
-      cocoapods: default
+    environment: *environment
     scripts:
-      - name: 預檢（API 授權、Bundle ID、App、內測群組、版本、build 號）
+      - *tooling
+      - name: 預檢（API 授權、Bundle ID、App、群組、版本、build 號）
         script: |
           set -euo pipefail
           echo preflight > "$HOME/release_phase"
-          python3 -m venv "$HOME/release-venv"
-          "$HOME/release-venv/bin/pip" install --quiet -r tool/release/requirements.txt
           "$HOME/release-venv/bin/python" tool/release/asc.py preflight \
             --create-bundle-id \
             --min-build-number "$BUILD_NUMBER" \
             --env-file "$CM_ENV"
 
-      - name: 品質檢查（analyze／test）
-        script: |
-          set -euo pipefail
-          echo gates > "$HOME/release_phase"
-          flutter pub get
-          flutter analyze
-          flutter test
-          "$HOME/release-venv/bin/python" -m unittest discover -s tool/release -p "test_*.py"
+      - *gates
 
       - name: 簽章（經 API 取得或建立 Distribution 憑證與 profile）
         script: |
@@ -55,14 +115,15 @@ workflows:
             --strict-match-identifier \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          # Shorebird 要求 build 號維持原樣，不能讓 Xcode 匯出時改掉
+          xcode-project use-profiles --custom-export-options='{"manageAppVersionAndBuildNumber": false}'
 
-      - name: 建置 IPA
+      - name: 建置 IPA（Shorebird release）
         script: |
           set -euo pipefail
           echo build > "$HOME/release_phase"
-          flutter precache --ios
-          flutter build ipa --release \
+          shorebird release ios \
+            --flutter-version="$FLUTTER_VERSION" \
             --build-name="$RELEASE_VERSION" \
             --build-number="$RELEASE_BUILD_NUMBER" \
             --export-options-plist="$HOME/export_options.plist"
@@ -91,36 +152,41 @@ workflows:
       - build/release-manifest.json
       - /tmp/xcodebuild_logs/*.log
 
-    publishing:
-      scripts:
-        # 不論成功失敗都會執行（取消／逾時除外）：交給 GitHub Actions 查驗並通知。
-        - name: 回報 GitHub（查驗 TestFlight＋通知）
-          script: |
-            set -uo pipefail
-            if [ -f "$HOME/release_uploaded" ]; then OUTCOME=uploaded; PHASE=""; else OUTCOME=ci_failed; PHASE=$(cat "$HOME/release_phase" 2>/dev/null || echo setup); fi
-            echo "outcome=$OUTCOME phase=$PHASE version=${RELEASE_VERSION:-} build=${RELEASE_BUILD_NUMBER:-}"
-            if [ -z "${GITHUB_DISPATCH_TOKEN:-}" ]; then
-              echo "⚠️ 沒有設定 GITHUB_DISPATCH_TOKEN：略過自動查驗與通知，請到 GitHub Actions 手動執行 ios-release-report"
-              exit 0
-            fi
-            PAYLOAD=$(OUTCOME="$OUTCOME" PHASE="$PHASE" python3 -c '
-            import json, os
-            e = os.environ
-            print(json.dumps({"ref": "master", "inputs": {
-                "outcome": e["OUTCOME"], "failed_phase": e["PHASE"],
-                "version": e.get("RELEASE_VERSION", ""), "build_number": e.get("RELEASE_BUILD_NUMBER", ""),
-                "source_ref": e.get("CM_TAG") or e.get("CM_BRANCH", ""), "source_commit": e.get("CM_COMMIT", ""),
-                "codemagic_build_url": "https://codemagic.io/app/%s/build/%s" % (e.get("CM_PROJECT_ID", ""), e.get("CM_BUILD_ID", "")),
-            }}))')
-            # 只重試暫時性錯誤（逾時、429、5xx）；401/403/404 是 token 問題，重試沒用。
-            STATUS=$(curl -sS --retry 3 -o /tmp/dispatch.out -w "%{http_code}" -X POST \
-              -H "Authorization: Bearer $GITHUB_DISPATCH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/$GITHUB_REPO/actions/workflows/ios-release-report.yml/dispatches" \
-              -d "$PAYLOAD")
-            if [ "$STATUS" = 204 ]; then echo "已觸發 GitHub 查驗／通知"; exit 0; fi
-            echo "❌ 通知 GitHub 失敗（HTTP $STATUS）。$( [ "$OUTCOME" = uploaded ] && echo '上傳本身已成功。' )"
-            case "$STATUS" in 401|403|404) echo "GITHUB_DISPATCH_TOKEN 無效或權限不足 → 重跑 tool/release/setup_secrets.py 更新 token";; esac
-            echo "手動補查：gh workflow run ios-release-report.yml -f outcome=$OUTCOME -f failed_phase=$PHASE -f version=${RELEASE_VERSION:-} -f build_number=${RELEASE_BUILD_NUMBER:-} -f source_commit=${CM_COMMIT:-}"
-            exit 1
+    publishing: *report
+
+  ios-patch:
+    name: iOS patch（Shorebird code push）
+    instance_type: mac_mini_m2
+    max_build_duration: 40
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'patch-*'
+          include: true
+      cancel_previous_builds: false
+    environment: *environment
+    scripts:
+      - *tooling
+      - *gates
+      - name: 產生並發布 patch（套用到最新的 release）
+        script: |
+          set -euo pipefail
+          echo patch > "$HOME/release_phase"
+          # patch 只送 Dart 差異，不需要簽章；動到原生程式或資源檔時 Shorebird 會擋下，請改發新版本 tag
+          shorebird patch ios --release-version=latest --no-codesign 2>&1 | tee "$HOME/patch.log"
+          python3 - <<'PY'
+          import os, re
+          log = open(os.path.join(os.environ["HOME"], "patch.log"), encoding="utf-8", errors="ignore").read()
+          version = re.search(r"Release Version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)", log)
+          patch = re.search(r"Published Patch\s*#?([0-9]+)", log)
+          values = {"RELEASE_VERSION": version.group(1) if version else "",
+                    "RELEASE_BUILD_NUMBER": version.group(2) if version else "",
+                    "PATCH_NUMBER": patch.group(1) if patch else ""}
+          with open(os.environ["CM_ENV"], "a") as env:
+              env.writelines(f"{k}={v}\n" for k, v in values.items())
+          print(values)
+          PY
+          touch "$HOME/patch_published"
+
+    publishing: *report

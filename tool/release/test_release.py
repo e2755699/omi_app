@@ -273,6 +273,55 @@ class SetupSecretsTest(unittest.TestCase):
         self.assertFalse(any("value-" in line for line in done))  # 回報只有名稱，不含值
 
 
+class ShorebirdSetupTest(unittest.TestCase):
+    def test_existing_app_is_reused(self):
+        import setup_secrets
+
+        calls = []
+
+        def call(method, path, body=None):
+            calls.append((method, path))
+            return {"apps": [{"app_id": "sb1", "display_name": "Omi"}]}
+
+        self.assertEqual(setup_secrets.ensure_shorebird_app(call, "Omi"), ("sb1", False))
+        self.assertEqual(calls, [("GET", "/apps")])
+
+    def test_missing_app_is_created_in_first_org(self):
+        import setup_secrets
+
+        def call(method, path, body=None):
+            if path == "/apps" and method == "GET":
+                return {"apps": [{"app_id": "x", "display_name": "Other"}]}
+            if path == "/organizations":
+                return {"organizations": [{"organization": {"id": 42}, "role": "owner"}]}
+            assert (method, path, body) == ("POST", "/apps", {"display_name": "Omi", "organization_id": 42})
+            return {"id": "sb-new", "display_name": "Omi"}
+
+        self.assertEqual(setup_secrets.ensure_shorebird_app(call, "Omi"), ("sb-new", True))
+
+    def test_partial_update_only_touches_given_secrets(self):
+        import setup_secrets
+
+        writes = []
+
+        def call(method, path, body=None):
+            if method != "GET":
+                writes.append((method, path, body))
+            if path.endswith("/variable-groups?page_size=100"):
+                return {"data": [{"id": "g1", "name": "app_store_connect"}, {"id": "g2", "name": "github_report"}]}
+            if path.endswith("/variables?page_size=100"):
+                return {"data": [{"id": "v9", "name": "GITHUB_DISPATCH_TOKEN"}]} if "g2" in path else {"data": []}
+            if method == "POST" and path.endswith("/variable-groups"):
+                return {"data": {"id": "g3", "name": body["name"]}}
+            return None
+
+        setup_secrets.upsert_codemagic(call, "app", {"GITHUB_DISPATCH_TOKEN": "t", "SHOREBIRD_TOKEN": "s"})
+        touched = {p for _, p, _ in writes}
+        self.assertNotIn("/variable-groups/g1/variables", touched)  # Apple 群組完全沒動
+        self.assertIn("/variable-groups/g2/variables/v9", touched)
+        self.assertIn(("POST", "/apps/app/variable-groups", {"name": "shorebird"}), writes)
+
+
 class HelpersTest(unittest.TestCase):
     def test_next_build_number(self):
         self.assertEqual(asc.next_build_number(0, 0), 1)
@@ -280,9 +329,8 @@ class HelpersTest(unittest.TestCase):
         self.assertEqual(asc.next_build_number(3, 9), 9)
 
     def test_release_tags(self):
-        for tag in ("v1.0.0", "v1.0.0-beta1", "v1.0.0-beta12"):
-            self.assertTrue(asc.tag_matches_version(tag, "1.0.0"), tag)
-        for tag in ("v1.0.1-beta1", "v1.0.0beta1", "v1.0.0-beta", "v1.0.0-rc1", "1.0.0-beta1", "v1.0.0.1"):
+        self.assertTrue(asc.tag_matches_version("v1.0.0", "1.0.0"))
+        for tag in ("v1.0.1", "v1.0.0-beta1", "1.0.0", "v1.0.0.1", "patch-1"):
             self.assertFalse(asc.tag_matches_version(tag, "1.0.0"), tag)
 
     def test_project_files_match_release_config(self):
@@ -351,6 +399,19 @@ class ReportTest(unittest.TestCase):
         _, body = report.compose({**self.ENV, "OUTCOME": "uploaded"},
                                  {"status": "ready", "external": {"status": "submitted"}})
         self.assertIn("已送 Beta 審查", body)
+
+    def test_patch_published_notice(self):
+        env = {**self.ENV, "OUTCOME": "patched", "PATCH_NUMBER": "3", "BUILD_NUMBER": "2", "SOURCE_REF": "patch-3"}
+        key, body = report.compose(env, None)
+        self.assertIn("🩹 Patch 3 已發布到 1.0.0 (2)", body)
+        self.assertEqual(report.final_status("patched", None), "ready")
+        self.assertIn("#patch3", key)
+
+    def test_patch_failure_is_not_reported_as_testflight(self):
+        env = {**self.ENV, "OUTCOME": "ci_failed", "FAILED_PHASE": "patch", "SOURCE_REF": "patch-4"}
+        _, body = report.compose(env, None)
+        self.assertIn("❌ Patch 失敗", body)
+        self.assertNotIn("TestFlight", body.split("\n")[0])
 
     def test_dedupe_key_differs_per_result(self):
         k1, _ = report.compose({**self.ENV, "OUTCOME": "uploaded"}, {"status": "unknown"})
