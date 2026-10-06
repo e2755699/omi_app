@@ -5,8 +5,8 @@
 
 會依序詢問（貼上的 token 不會顯示在畫面上，也不會存檔或印出）：
   1. Codemagic API token        https://codemagic.io/settings → API token → Show
-  2. App Store Connect Issuer ID、Key ID、.p8 檔案位置（沿用黃絲帶那把即可）
-  3. 簽章私鑰檔案位置（沿用黃絲帶的 CERTIFICATE_PRIVATE_KEY；直接 Enter 會產生新的）
+  2. App Store Connect Issuer ID、Key ID、.p8 檔案位置（Omi 專屬的 omi-ci key）
+  3. 簽章私鑰：第一次直接 Enter 產生新的（備份在 ~/.omi-release/，之後重跑自動沿用）
   4. GitHub fine-grained token（給 Codemagic 觸發查驗用）
 
 然後：先用 App Store Connect API 唯讀確認 key 可用 → 寫進 Codemagic 變數群組
@@ -35,6 +35,8 @@ GROUPS = {
     "github_report": ["GITHUB_DISPATCH_TOKEN"],
 }
 GITHUB_SECRETS = ["APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_KEY_IDENTIFIER", "APP_STORE_CONNECT_PRIVATE_KEY"]
+# Codemagic 的 Secret 讀不回來，所以簽章私鑰在本機留一份（不在 repo 裡）
+SIGNING_KEY_BACKUP = Path.home() / ".omi-release" / "ios_distribution_private_key.pem"
 
 
 # ---------------------------------------------------------------- Codemagic
@@ -103,10 +105,9 @@ def new_signing_key() -> str:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
                             serialization.NoEncryption()).decode()
-    path = Path.home() / ".omi-release" / "ios_distribution_private_key.pem"
-    path.parent.mkdir(exist_ok=True)
-    path.write_text(pem, encoding="utf-8")
-    print(f"  已產生新的簽章私鑰並備份到 {path}（請妥善保存，之後每次都要用同一把）")
+    SIGNING_KEY_BACKUP.parent.mkdir(exist_ok=True)
+    SIGNING_KEY_BACKUP.write_text(pem, encoding="utf-8")
+    print(f"  已產生新的簽章私鑰並備份到 {SIGNING_KEY_BACKUP}（請妥善保存；重跑這個腳本會自動使用它）")
     return pem
 
 
@@ -123,14 +124,13 @@ def main() -> int:
     key_id = input(f"   Key ID{f'（Enter 用 {guess.group(1)}）' if guess else ''}：").strip() or (guess and guess.group(1))
     private_key = read_pem(p8, " App Store Connect 的 .p8")
 
-    print("\n3. 簽章私鑰（沿用黃絲帶的 CERTIFICATE_PRIVATE_KEY，就不會多建一張發行憑證）")
-    cert_path = ask_path("   檔案位置（沒有就直接 Enter，會產生新的並多建一張憑證）：", allow_empty=True)
-    if cert_path:
-        cert_key = read_pem(cert_path, "簽章私鑰")
-    elif input("   確定要產生新的簽章私鑰嗎？(y/N) ").strip().lower() == "y":
-        cert_key = new_signing_key()
+    print("\n3. 簽章私鑰（CI 用它取得 Apple 發行憑證；之後每次都要用同一把，才不會一直多建憑證）")
+    if SIGNING_KEY_BACKUP.is_file():
+        cert_path = ask_path(f"   檔案位置（Enter 用上次產生的 {SIGNING_KEY_BACKUP}）：", allow_empty=True)
+        cert_key = read_pem(cert_path or SIGNING_KEY_BACKUP, "簽章私鑰")
     else:
-        return 1
+        cert_path = ask_path("   第一次設定直接 Enter 產生新的（或輸入既有私鑰檔案位置）：", allow_empty=True)
+        cert_key = read_pem(cert_path, "簽章私鑰") if cert_path else new_signing_key()
 
     gh_token = getpass.getpass("\n4. GitHub fine-grained token（只限 omi_app，Actions: Read and write）：").strip()
 

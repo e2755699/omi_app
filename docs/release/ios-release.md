@@ -60,21 +60,21 @@ GitHub Actions：testflight-external-watch.yml（每小時）
 
 **自動 provisioning（API）**：Codemagic CLI 用 API key 找符合 `CERTIFICATE_PRIVATE_KEY` 的 Apple Distribution 憑證和 App Store profile，沒有就建立。
 
-- 同一個 Apple Team 已有 2 張 Distribution 憑證（2027/09、2027/10 到期，都是黃絲帶 CI 建的）。**沿用黃絲帶的 `CERTIFICATE_PRIVATE_KEY`** 就會直接用現有憑證；換新私鑰會再建一張，Apple 對數量有上限。
-- API key 也沿用既有團隊金鑰（`yellow-ribbon-ci` 或 `codemagic`，都是 App 管理權限），不必新建。
-- 不會撤銷任何現有憑證。
+- Omi 用**專屬**的 API key（`omi-ci`，App 管理權限）和專屬簽章私鑰，和黃絲帶互不影響。黃絲帶的 key 與私鑰只存在 Codemagic 的 Secret（讀不回）和 Apple（`.p8` 只能下載一次），無法沿用。
+- 簽章私鑰在擁有者電腦的 `~/.omi-release/ios_distribution_private_key.pem` 留一份備份（Codemagic 讀不回）；之後一律用同一把，不要換，否則每換一次就多建一張憑證。
+- Apple 每個帳號最多 3 張有效的 Distribution 憑證。第一次 build 前已有 2 張（黃絲帶 CI 建的，2027/09、2027/10 到期），Omi 第一次 build 會建第 3 張。到期的不佔名額；要再開新專案前，先確認哪張沒在用再撤銷（CI 不會自動撤銷）。
 
 ## 秘密與設定位置（不記錄值）
 
 | 名稱 | 放在哪 | 內容 |
 | --- | --- | --- |
 | `APP_STORE_CONNECT_ISSUER_ID` | Codemagic 群組 `app_store_connect`＋GitHub Actions secrets | Issuer ID |
-| `APP_STORE_CONNECT_KEY_IDENTIFIER` | 同上 | 沿用的 key 的 Key ID |
-| `APP_STORE_CONNECT_PRIVATE_KEY` | 同上 | 該 key 的 `.p8` 全文 |
-| `CERTIFICATE_PRIVATE_KEY` | Codemagic 群組 `app_store_connect` | 黃絲帶用的同一把簽章私鑰 PEM |
+| `APP_STORE_CONNECT_KEY_IDENTIFIER` | 同上 | `omi-ci` 的 Key ID |
+| `APP_STORE_CONNECT_PRIVATE_KEY` | 同上 | `omi-ci` 的 `.p8` 全文 |
+| `CERTIFICATE_PRIVATE_KEY` | Codemagic 群組 `app_store_connect` | Omi 專屬簽章私鑰 PEM（RSA 2048） |
 | `GITHUB_DISPATCH_TOKEN` | Codemagic 群組 `github_report` | fine-grained token，只限 `e2755699/omi_app`，Actions: Read and write |
 
-Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀不回，所以不能直接引用黃絲帶的 `yellow_ribbon_ci`，要在 omi_app 重新放一次（值相同）。
+Codemagic 個人帳號的變數群組只屬於單一 App，而且 Secret 值讀不回，所以不能引用黃絲帶的 `yellow_ribbon_ci`。
 
 **放秘密（擁有者本人執行，一個指令）**：
 
@@ -105,7 +105,7 @@ python tool/release/setup_secrets.py
 | --- | --- |
 | 預檢 `授權失敗` / 401 / 403 | key 被撤銷、權限不夠或秘密貼錯（`.p8` 要含 BEGIN/END 行）。修好後重跑 |
 | 預檢 `tag 和 pubspec 版本不一致` | 改 pubspec 後打新 tag；不要移動已推送的 tag |
-| 簽章失敗（憑證數量上限） | 多半是 `CERTIFICATE_PRIVATE_KEY` 不是黃絲帶那把。換回同一把；CI 不會自動撤銷憑證 |
+| 簽章失敗（憑證數量上限） | 已有 3 張有效憑證，且都不符合 `CERTIFICATE_PRIVATE_KEY`（多半是私鑰被換掉）。換回 `~/.omi-release/` 那把；真的要撤銷哪張由擁有者決定，CI 不會自動撤銷 |
 | 上傳失敗 | 報告會查 Apple 20 分鐘看是否其實已收到；不要用同一個 build 號重傳，重跑會配新號 |
 | 通知 `unknown: timeout_*` | Apple 處理太久。GitHub Actions → iOS release report → Run workflow，填 `uploaded`、版本、build 號補查 |
 | 外部測試 `blocked` | TestFlight → 測試資訊 補齊（錯誤訊息會寫缺什麼），再補查一次（同上 Run workflow）；已送審的不會重送 |
@@ -114,7 +114,7 @@ python tool/release/setup_secrets.py
 
 ## 輪替
 
-- **API key**：建新 key → 更新 Codemagic＋GitHub 的三個變數 → 跑一次確認 → 撤銷舊 key（黃絲帶也在用的話兩邊一起換）。
+- **API key**：建新 key → 重跑 `setup_secrets.py` → 跑一次確認 → 撤銷舊的 `omi-ci`（只有 Omi 在用，不影響黃絲帶）。
 - **GitHub token**：到期前重建，更新 Codemagic `GITHUB_DISPATCH_TOKEN`。
 - **簽章私鑰**：不換。
 
