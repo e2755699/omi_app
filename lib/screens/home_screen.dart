@@ -11,6 +11,7 @@ import '../widgets/player_card.dart';
 import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import 'daily_record_screen.dart';
+import 'demo_lab_screen.dart';
 import 'item_detail_sheet.dart';
 import 'player_screen.dart';
 import 'setup_tutorial.dart';
@@ -431,9 +432,9 @@ class _PreviewBanner extends StatelessWidget {
   }
 }
 
-enum _DemoAction { previewDate, addWidget, reset, licenses }
+enum _DemoAction { lab, previewDate, addWidget, reset, licenses }
 
-/// Demo 工具：換日期看不同階段、把小工具加到桌面、清掉資料重新開始教學。
+/// Demo 工具：Demo Lab 專區、換日期看不同階段、把小工具加到桌面、清掉資料重新開始教學。
 class _DemoMenu extends StatelessWidget {
   const _DemoMenu({required this.store});
 
@@ -470,6 +471,8 @@ class _DemoMenu extends StatelessWidget {
       icon: const Icon(Icons.science_outlined),
       onSelected: (action) async {
         switch (action) {
+          case _DemoAction.lab:
+            await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DemoLabScreen(store: store)));
           case _DemoAction.previewDate:
             await _pickPreviewDate(context);
           case _DemoAction.addWidget:
@@ -486,6 +489,8 @@ class _DemoMenu extends StatelessWidget {
         }
       },
       itemBuilder: (_) => const [
+        PopupMenuItem(value: _DemoAction.lab, child: Text('🧪 Demo Lab 專區（炫耀卡）')),
+        PopupMenuDivider(),
         PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
         PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面')),
         PopupMenuItem(value: _DemoAction.reset, child: Text('清除資料，重新開始教學')),
