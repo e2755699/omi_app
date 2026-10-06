@@ -1,6 +1,6 @@
 # iOS 發布（Codemagic → TestFlight 內測＋外部測試）
 
-> 狀態（2026-10-06）：**已配置，尚未真實實跑**。帳號設定進度見下方「設定進度」；跑過第一次後更新「驗收矩陣」。
+> 狀態（2026-10-06）：**第一次真實發布 1.0.0 (1) 已內測可用，外部測試已送 Beta 審查**（等 Apple 結果）。Codemagic → GitHub 的自動觸發因 token 無效失敗，該次改用 `gh` 手動補查；換好 token 後再驗一次。細節見「驗收矩陣」。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
 ## 怎麼發布（單一入口）
@@ -93,11 +93,13 @@ python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 | Bundle ID `com.jacklope.omiApp` | ✅ 2026-10-06 已註冊（Apple Developer） |
 | App Store Connect App「Omi～快樂的 Σίσυφος」 | ✅ 已建立，Apple ID `6819375327`，SKU `omi-ios` |
 | 內部群組「Omi Internal」 | ✅ 已建立，自動分發開啟，帳號持有人已加入 |
-| 外部群組「Omi 夥伴」 | 第一次預檢自動建立（開公開連結） |
+| 外部群組「Omi 夥伴」 | ✅ 第一次預檢自動建立（開公開連結） |
 | Codemagic App | ✅ 已加入（app id `6ac3e6dec18dba32d6229cd5`） |
 | 隱私權政策頁 | ✅ `web/privacy/` → https://e2755699.github.io/omi_app/privacy/ |
-| TestFlight 測試資訊（描述、隱私網址、審查備註） | ✅ 已填並儲存；回饋信箱、審查聯絡人（姓名／電話／信箱）待擁有者填 |
-| Codemagic 變數群組、GitHub secrets、GitHub token | 待擁有者執行 `setup_secrets.py`（秘密只能本人放） |
+| TestFlight 測試資訊 | ✅ 描述、隱私網址、demo 審查備註、回饋信箱、審查聯絡人都已儲存 |
+| App Store Connect API key `omi-ci` | ✅ App 管理權限，Key ID `Y756B38PS2`；`.p8` 在擁有者的 `~/.omi-release/` |
+| Codemagic 變數群組、GitHub Actions secrets | ✅ 2026-10-06 由 `setup_secrets.py` 寫入 |
+| `GITHUB_DISPATCH_TOKEN` | ⚠️ 存進去的值無效（舊版腳本沒驗證、終端機貼上失敗），且 token 曾出現在截圖中 → 擁有者 Regenerate 後重跑新版 `setup_secrets.py` |
 
 ## 排錯與重試
 
@@ -135,9 +137,13 @@ python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 
 | 情境 | 目前狀態 | 證據 |
 | --- | --- | --- |
-| 正常發布（tag → 內測可用 → 通知） | 已配置；查驗邏輯模擬通過 | `tool/release/test_release.py`（29 項，2026-10-06 本機） |
-| 自動 provisioning（乾淨 runner，沿用既有憑證） | 已配置，**未實跑** | — |
-| 外部測試：What to Test、加群組、送審（不重送） | 模擬通過 | `ExternalTest.*` |
+| 正常發布：建置 → 上傳 → 內測可用 → 通知 | **真實雲端實跑通過、Apple API 確認、通知已送出**（手動 Codemagic build；收件待擁有者確認） | Codemagic build #1（[連結](https://codemagic.io/app/6ac3e6dec18dba32d6229cd5/build/6ac4425b7394575b200b76db)，`ba5abb1`）→ 1.0.0 (1)，Apple build `a2b7493a-23bc-4963-b96e-e932e5278924`：`VALID`、`IN_BETA_TESTING`、在「Omi Internal」（[Actions run 37395758576](https://github.com/e2755699/omi_app/actions/runs/37395758576)，2026-10-06 00:52 UTC）→ issue #1 留言 |
+| Codemagic → GitHub 自動觸發查驗 | **實跑失敗**：dispatch HTTP 401（token 無效），已改成清楚報錯、不重試 4xx；該次用 `gh workflow run` 手動補查 | build #1 最後一步 log |
+| tag 觸發（`git push origin v1.0.0`） | 已配置，未實跑（第一次用手動 build） | — |
+| 自動 provisioning（乾淨 runner，經 API 建立憑證＋profile） | **真實雲端實跑通過** | build #1 簽章步驟 3 秒成功；Apple Developer 出現新的 Distribution 憑證（API 建立，2027/10/06 到期，目前 3/3） |
+| 預檢、品質檢查（analyze／test／發布工具測試） | **真實雲端實跑通過** | build #1：預檢 6 秒、品質檢查 46 秒 |
+| 外部測試：What to Test、加群組、送審（不重送） | **真實實跑：已送審**（`WAITING_FOR_BETA_REVIEW`）；審查結果待 Apple | 同上 Actions run 的 `external` 欄位；模擬：`ExternalTest.*` |
+| 外部審查結果通知（每小時排程） | 已配置；排程空跑實跑通過；真實結果待審查完成 | `testflight-external-watch.yml` |
 | 外部測試資料不齊 → blocked、不重送 | 模擬通過 | `test_missing_test_info_is_blocked_and_not_retried` |
 | 外部問題不蓋掉內測 ready | 模擬通過 | `test_external_problem_does_not_override_internal_ready` |
 | 審查結果通知（通過／被拒／逾時，去重） | 模擬通過 | `test_watch_events` |
@@ -146,8 +152,8 @@ python tool/release/setup_secrets.py --issuer-id <Issuer ID> --key-id <Key ID>
 | Apple 處理失敗／過期 → failed | 模擬通過 | `test_apple_rejection_is_failed`、`test_expired_build_is_failed` |
 | 401/403 不重試；429/5xx 有限退避 | 模擬通過 | `ClientTest.*` |
 | 逾時 → unknown；找不到 build → unknown | 模擬通過 | `test_deadline_*`、`test_missing_build_*` |
-| Codemagic 回報腳本 payload | 本機模擬通過（假 curl） | 2026-10-06 |
-| 通知真的寄到信箱 | 未驗 | — |
+| Codemagic 回報腳本 payload／錯誤訊息 | 本機模擬通過（假 curl：204／401／503） | 2026-10-06 |
+| 通知真的寄到信箱 | issue 留言已送出（@擁有者）；**收件未確認** | issue #1 |
 | build 取消／逾時 | **不支援** | — |
 
-第一次真實發布後補上：Codemagic build 連結、版本／build、Apple build ID、Actions run、issue 留言、是否收到信、Beta 審查結果。
+待補：擁有者確認收到通知信；換好 token 後一次 tag 觸發的完整自動流程；Beta 審查結果與外部通知。

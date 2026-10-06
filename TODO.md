@@ -30,11 +30,11 @@
 
 ## iOS 上架（見 docs/release/）
 
-- [x] Codemagic → TestFlight 管線、上傳後自動查驗＋通知（已配置，待第一次實跑）
-- [ ] 秘密：Codemagic 變數群組、GitHub token／Actions secrets（Omi 專屬 omi-ci key＋新簽章私鑰，擁有者本人執行 setup_secrets.py）
+- [x] Codemagic → TestFlight 管線：1.0.0 (1) 已內測可用、已送外部 Beta 審查（2026-10-06）
+- [ ] GitHub token 換新（Regenerate）後重跑 setup_secrets.py；再用一次 tag 驗證全自動流程
 - [x] Bundle ID `com.jacklope.omiApp`、App Store Connect App、內部群組、Codemagic App（2026-10-06）
 - [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（已配置，待實跑）
-- [ ] TestFlight 測試資訊：回饋信箱、審查聯絡人（擁有者本人填）
+- [x] TestFlight 測試資訊（含回饋信箱、審查聯絡人）
 - [ ] 正式版拿掉 Demo 內容、挑戰日期不要寫死（審查指南 2.2）
 - [ ] 支援頁（隱私權政策頁已完成）
 - [ ] 價格／付費協議／歐盟 DSA、要不要支援 iPad
