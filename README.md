@@ -29,7 +29,7 @@ Nourish 的三選二和作息時間可以個人化。
 - **首頁**：挑戰進度 HUD → 每一項各一條能量槽 → 每日打卡 → 隊友。
 - **每日打卡**：一排機械鍵盤鍵帽，按下＝完成，Reflect 也在這頁寫。
 - **隊友**：還沒完成的可以「集氣加油」，完成的可以「慶祝」。
-- **Android 桌面小工具**：顯示收到的加油數，直接在桌面按鍵帽打卡。
+- **桌面小工具（Android／iOS）**：顯示收到的加油數，直接在桌面按鍵帽打卡（iOS 需要 17 以上；點標頭或「寫 Reflect」會開啟 App）。
 - **像素風**：黑色缺角邊框、硬陰影、分段能量條、自繪 5×7 字型。
 
 ## 開發
@@ -47,10 +47,11 @@ flutter run
 lib/
   main.dart / app.dart     進入點、主題、路由
   models/                  挑戰、規則（The Rules）、進度、打卡紀錄
-  data/                    ChallengeStore（本機儲存）、示範隊友、Android 桌面小工具橋接
+  data/                    ChallengeStore（本機儲存）、示範隊友、桌面小工具橋接
   screens/                 標題、設定教學、首頁、每日打卡、項目詳情、隊友
   widgets/                 像素 UI 元件、鍵帽、能量槽、字型、隊友卡片
 android/                   含桌面小工具（CheerWidgetProvider.kt）
+ios/CheerWidget/            iOS 桌面小工具（WidgetKit，SwiftUI）；ios/Runner/ToggleIntent.swift 是鍵帽按下時的 AppIntent
 ios/                       Bundle ID com.jacklope.omiApp
 web/                       網頁版；web/privacy/ 是隱私權政策頁
 tool/release/              iOS 發布工具（預檢、查驗、通知、設定秘密）

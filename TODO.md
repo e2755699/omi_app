@@ -25,7 +25,7 @@
 - [ ] 後端：讓大家真的看到彼此進度、加油數是真的（現在隊友是示範資料）
 - [ ] 中文也換成像素字型（例如俐方體11號 Cubic 11，OFL 授權）
 - [ ] 像素風 App 圖示（上架 App Store 前必須）
-- [ ] iOS 桌面小工具（需要 Mac + Xcode）
+- [x] iOS 桌面小工具（WidgetKit，鍵帽可直接打卡；需要發 `v<版本>` 才會進 TestFlight，擁有者要先在 Apple Developer 開好 App Group，見 docs/release/ios-release.md）
 - [ ] 正式簽章，上架 Google Play
 
 ## iOS 上架（見 docs/release/）

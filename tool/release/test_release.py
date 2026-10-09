@@ -366,7 +366,12 @@ class HelpersTest(unittest.TestCase):
 
     def test_project_files_match_release_config(self):
         self.assertRegex(asc.read_pubspec_version(), r"^\d+\.\d+\.\d+$")
-        self.assertEqual(asc.read_app_bundle_ids(), {asc.CONFIG["bundle_id"]})
+        self.assertEqual(asc.read_app_bundle_ids(), {asc.CONFIG["bundle_id"], asc.CONFIG["widget_bundle_id"]})
+        self.assertTrue(asc.CONFIG["widget_bundle_id"].startswith(asc.CONFIG["bundle_id"] + "."))
+        entitlements = "\n".join(
+            (asc.ROOT / path).read_text(encoding="utf-8")
+            for path in ("ios/Runner/Runner.entitlements", "ios/CheerWidget/CheerWidget.entitlements"))
+        self.assertEqual(entitlements.count(asc.CONFIG["app_group"]), 2)
 
 
 class ClientTest(unittest.TestCase):

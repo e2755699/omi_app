@@ -110,6 +110,8 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | App Store Connect App「Omi～快樂的 Σίσυφος」 | ✅ 已建立，Apple ID `6819375327`，SKU `omi-ios` |
 | 內部群組「Omi Internal」 | ✅ 已建立，自動分發開啟，帳號持有人已加入 |
 | 外部群組「Omi 夥伴」 | ✅ 第一次預檢自動建立（開公開連結） |
+| 桌面小工具 Bundle ID `com.jacklope.omiApp.CheerWidget` | ⚠️ 擁有者註冊中；`--create-bundle-id` 也會在預檢自動補註冊 |
+| App Group `group.com.jacklope.omiApp` | ⚠️ 擁有者註冊中；兩個 Bundle ID（App 與 CheerWidget）都要勾選這個 App Group 能力 |
 | Codemagic App | ✅ 已加入（app id `6ac3e6dec18dba32d6229cd5`） |
 | 隱私權政策頁 | ✅ `web/privacy/` → https://e2755699.github.io/omi_app/privacy/ |
 | TestFlight 測試資訊 | ✅ 描述、隱私網址、demo 審查備註、回饋信箱、審查聯絡人都已儲存 |
@@ -178,3 +180,12 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | build 取消／逾時 | **不支援** | — |
 
 待補：擁有者確認收到通知信；換好 token 後一次 tag 觸發的完整自動流程；Beta 審查結果與外部通知。
+
+## iOS 桌面小工具（CheerWidget）
+
+- 兩個 target 簽章：`com.jacklope.omiApp`（App）與 `com.jacklope.omiApp.CheerWidget`（WidgetKit 擴充），都有 App Group `group.com.jacklope.omiApp` 的 entitlement（`ios/Runner/Runner.entitlements`、`ios/CheerWidget/CheerWidget.entitlements`）。
+- Dart 透過 `HomeWidget.setAppGroupId` 把資料寫進 App Group，小工具從同一個 App Group 讀；鍵帽按下時由 `ToggleIntent` 在 App 行程啟動背景 Flutter engine，呼叫 `homeWidgetInteraction`，打卡寫進 App 自己的 `shared_preferences`（和 App 讀的是同一份），再把新狀態寫回 App Group 並重新整理小工具。
+- 小工具需要 iOS 17（互動鍵帽）；App 本身仍支援 iOS 15。
+- **這次發布一定要發 `v<版本>`**（新 target、entitlement、Info.plist 的 URL scheme 都是原生變更），不能用 `patch-<數字>`：Shorebird 基底版 1.0.0+2 沒有小工具，patch 只能換 Dart。`ios-patch` 本身不受影響。
+- CI：`codemagic.yaml` 的簽章步驟對 `$BUNDLE_ID` 與 `$WIDGET_BUNDLE_ID` 各跑一次 `fetch-signing-files --create`，`xcode-project use-profiles` 就能簽兩個 target。`asc.py preflight` 會檢查 Xcode 專案的 Bundle ID 等於 config.json 的兩個，並（帶 `--create-bundle-id` 時）註冊小工具的 Bundle ID。
+- 前提：App Group 與其能力必須先由擁有者在 Apple Developer 開好（API key 做不到指派 App Group），否則 `fetch-signing-files --create` 產出的 profile 沒有 App Group，簽章會失敗。
