@@ -33,7 +33,7 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 
 - `lib/models/`：`Challenge`（日期、第幾天、週次）、`rules.dart`（The Rules 的項目定義）、進度、打卡紀錄、個人設定。
 - `lib/data/challenge_store.dart`：唯一的資料來源（`ChangeNotifier`），讀寫本機、計算進度。
-- `lib/data/home_widget_bridge.dart`：Android 桌面小工具（`android/.../CheerWidgetProvider.kt`）的資料同步；iOS 沒有小工具。
+- `lib/data/home_widget_bridge.dart`：Android 桌面小工具（`android/.../CheerWidgetProvider.kt`）的資料同步；iOS 對應 `ios/CheerWidget/`（WidgetKit）與 `ios/Runner/ToggleIntent.swift`（鍵帽 AppIntent，經 home_widget 在背景執行同一個 Dart `homeWidgetInteraction`）。iOS 小工具資料放 App Group `group.com.jacklope.omiApp`。
 - `lib/screens/`：`title_screen` → `setup_tutorial`（一步步教學）→ `home_screen`（HUD → 能量槽 → 每日打卡 → 隊友）→ `daily_record_screen`（鍵帽打卡＋Reflect）。
 - `lib/widgets/`：像素 UI（`pixel_ui.dart` 的 `PixelColors`、邊框、陰影）、`keycap.dart`、`energy_tile.dart`、`pixel_text.dart`（自繪 5×7 字型）、`responsive.dart`（寬螢幕版面）。
 

@@ -280,6 +280,7 @@ def tag_matches_version(tag: str, version: str) -> bool:
 
 
 def read_app_bundle_ids(path: Path = ROOT / "ios/Runner.xcodeproj/project.pbxproj") -> set[str]:
+    """Xcode 專案裡要上架簽章的 Bundle ID（App 與桌面小工具擴充），不含單元測試。"""
     ids = set(re.findall(r"PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);", path.read_text(encoding="utf-8")))
     return {i.strip('"') for i in ids if not i.endswith(".RunnerTests")}
 
@@ -289,6 +290,7 @@ def read_app_bundle_ids(path: Path = ROOT / "ios/Runner.xcodeproj/project.pbxpro
 
 def preflight(args) -> int:
     bundle_id = CONFIG["bundle_id"]
+    widget_id = CONFIG["widget_bundle_id"]
     problems: list[str] = []
 
     version = read_pubspec_version()
@@ -296,8 +298,9 @@ def preflight(args) -> int:
     if tag and not tag_matches_version(tag, version):
         problems.append(f"tag {tag} 和 pubspec 版本 {version} 不一致（應該是 v{version}；小改動請用 patch-<數字>）")
     project_ids = read_app_bundle_ids()
-    if project_ids != {bundle_id}:
-        problems.append(f"Xcode 專案的 Bundle ID {sorted(project_ids)} 和 tool/release/config.json 的 {bundle_id} 不一致")
+    if project_ids != {bundle_id, widget_id}:
+        problems.append(
+            f"Xcode 專案的 Bundle ID {sorted(project_ids)} 和 tool/release/config.json 的 {sorted({bundle_id, widget_id})} 不一致")
 
     try:
         client = AscClient.from_env()
@@ -309,6 +312,15 @@ def preflight(args) -> int:
             bundle = True
         if bundle is None:
             problems.append(f"Apple Developer 還沒有 Bundle ID {bundle_id}")
+
+        # 桌面小工具擴充要有自己的 Bundle ID（App Group 能力要擁有者在 Apple Developer 手動開）。
+        if find_bundle_id(client, widget_id) is None:
+            if args.create_bundle_id:
+                client.post("/v1/bundleIds", {"data": {"type": "bundleIds", "attributes": {
+                    "identifier": widget_id, "name": f"{CONFIG['bundle_name']} Widget", "platform": "IOS"}}})
+                print(f"已在 Apple Developer 註冊 Bundle ID {widget_id}")
+            else:
+                problems.append(f"Apple Developer 還沒有桌面小工具的 Bundle ID {widget_id}")
 
         app = find_app(client, bundle_id) if bundle else None
         if bundle and app is None:
@@ -342,6 +354,7 @@ def preflight(args) -> int:
     build_number = next_build_number(latest_build_number(client, app["id"]), args.min_build_number)
     values = {
         "BUNDLE_ID": bundle_id,
+        "WIDGET_BUNDLE_ID": widget_id,
         "APP_STORE_APP_ID": app["id"],
         "BETA_GROUP": CONFIG["beta_group"],
         "RELEASE_VERSION": version,

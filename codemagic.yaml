@@ -114,6 +114,11 @@ workflows:
             --type IOS_APP_STORE \
             --strict-match-identifier \
             --create
+          # 桌面小工具擴充（CheerWidget）有自己的 Bundle ID 和 profile，use-profiles 才能兩個 target 都簽
+          app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --strict-match-identifier \
+            --create
           keychain add-certificates
           # Shorebird 要求 build 號維持原樣，不能讓 Xcode 匯出時改掉
           xcode-project use-profiles --custom-export-options='{"manageAppVersionAndBuildNumber": false}'

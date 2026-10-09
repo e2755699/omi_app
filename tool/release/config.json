@@ -1,5 +1,7 @@
 {
   "bundle_id": "com.jacklope.omiApp",
+  "widget_bundle_id": "com.jacklope.omiApp.CheerWidget",
+  "app_group": "group.com.jacklope.omiApp",
   "bundle_name": "Omi",
   "beta_group": "Omi Internal",
   "external_group": "Omi 夥伴",
