@@ -110,8 +110,8 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | App Store Connect App「Omi～快樂的 Σίσυφος」 | ✅ 已建立，Apple ID `6819375327`，SKU `omi-ios` |
 | 內部群組「Omi Internal」 | ✅ 已建立，自動分發開啟，帳號持有人已加入 |
 | 外部群組「Omi 夥伴」 | ✅ 第一次預檢自動建立（開公開連結） |
-| 桌面小工具 Bundle ID `com.jacklope.omiApp.CheerWidget` | ⚠️ 擁有者註冊中；`--create-bundle-id` 也會在預檢自動補註冊 |
-| App Group `group.com.jacklope.omiApp` | ⚠️ 擁有者註冊中；兩個 Bundle ID（App 與 CheerWidget）都要勾選這個 App Group 能力 |
+| 桌面小工具 Bundle ID `com.jacklope.omiApp.CheerWidget` | ✅ 2026-10-10 已註冊（Apple Developer），App Groups 能力已開並指派 `group.com.jacklope.omiApp` |
+| App Group `group.com.jacklope.omiApp` | ✅ 2026-10-10 已註冊；`com.jacklope.omiApp` 與 CheerWidget 都已勾選並指派。改能力會讓舊 profile 失效，下次 `v<版本>` 由 `fetch-signing-files --create` 重建 |
 | Codemagic App | ✅ 已加入（app id `6ac3e6dec18dba32d6229cd5`） |
 | 隱私權政策頁 | ✅ `web/privacy/` → https://e2755699.github.io/omi_app/privacy/ |
 | TestFlight 測試資訊 | ✅ 描述、隱私網址、demo 審查備註、回饋信箱、審查聯絡人都已儲存 |
@@ -188,4 +188,5 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 - 小工具需要 iOS 17（互動鍵帽）；App 本身仍支援 iOS 15。
 - **這次發布一定要發 `v<版本>`**（新 target、entitlement、Info.plist 的 URL scheme 都是原生變更），不能用 `patch-<數字>`：Shorebird 基底版 1.0.0+2 沒有小工具，patch 只能換 Dart。`ios-patch` 本身不受影響。
 - CI：`codemagic.yaml` 的簽章步驟對 `$BUNDLE_ID` 與 `$WIDGET_BUNDLE_ID` 各跑一次 `fetch-signing-files --create`，`xcode-project use-profiles` 就能簽兩個 target。`asc.py preflight` 會檢查 Xcode 專案的 Bundle ID 等於 config.json 的兩個，並（帶 `--create-bundle-id` 時）註冊小工具的 Bundle ID。
+- 模擬器驗收（2026-10-10，iPhone 16 Pro / iOS 18.4）：小工具顯示 DAY、加油數、8 顆鍵帽；App 執行中按「有氧」→ 小工具變 1/8，關掉 App 重開後有氧 30/65 分鐘；**App 已關閉時**按「閱讀」→ 系統在背景啟動 App 行程、小工具變 2/8，重開 App 後閱讀 1/3 天。證明打卡寫進 App 讀的那份本機資料。真機與 TestFlight 尚未驗。
 - 前提：App Group 與其能力必須先由擁有者在 Apple Developer 開好（API key 做不到指派 App Group），否則 `fetch-signing-files --create` 產出的 profile 沒有 App Group，簽章會失敗。
