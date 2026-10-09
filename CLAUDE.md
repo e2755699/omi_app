@@ -7,9 +7,9 @@
 **Omi～快樂的 Σίσυφος**：Discord 社群「Omi 新計劃」的 The Omi Challenge 追蹤 App（主辦第一輪 2026-10-09 → 2026-12-31，84 天；App 裡每個人從開始用的那天算 Day 1，結束固定 12/31）。規則來源是 Mindy 的 Notion Wiki，需求整理在 `docs/PRD.md`，一頁摘要 `docs/SUMMARY.md`。Flutter 跨 Android／iOS／Web。
 
 **目前是 Demo／測試階段**：
-- 資料只存在本機（`shared_preferences`），隊友是 `lib/data/demo_data.dart` 的示範資料。
+- 預設建置保留本機（`shared_preferences`），不顯示示範隊友。2026-10-10 擁有者授權 Supabase 後端與 Discord 登入，登入放在教學最後，可跳過。
 - 🧪 選單可以「換一天看看」（previewDate）；開跑日存在 Profile，結束日 `challengeEnd` 寫死在 `lib/models/challenge.dart`。
-- 擁有者說過「先用 Demo 討論需求，完成後再討論架構」：**不要自己加後端或改架構**，等擁有者決定。
+- Supabase 開發專案已建立，Flutter 雲端工作區使用 SQLite 離線佇列；Discord provider、真機與端到端驗收仍未完成。實際狀態看 `docs/backend/supabase-plan.md`，不要把單元測試通過當成正式上線。
 - 正式上架 App Store 前要拿掉 Demo 內容（審查指南 2.2），清單在 `docs/release/app-store-listing.md`。
 
 ## 指令

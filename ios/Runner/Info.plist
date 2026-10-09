@@ -35,6 +35,8 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>每週一張照片：從相簿選一張代表這週的照片，只存在你的手機裡。</string>
 	<key>NSCameraUsageDescription</key>

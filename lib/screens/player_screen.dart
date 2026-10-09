@@ -21,9 +21,12 @@ class PlayerScreen extends StatelessWidget {
       builder: (context, _) {
         final player = store.playerById(playerId);
         if (player == null) {
-          return Scaffold(appBar: AppBar(), body: const Center(child: Text('找不到這位參加者')));
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('找不到這位參加者')),
+          );
         }
-        final challenge = store.challenge;
+        final challenge = store.challengeFor(player);
         final today = store.today;
         final summary = player.summary(challenge, today);
         final items = player.items;
@@ -77,7 +80,9 @@ class PlayerScreen extends StatelessWidget {
                   const SizedBox(height: 22),
                   Row(
                     children: [
-                      const Expanded(child: SectionTitle(tag: 'ENERGY', title: '各項挑戰')),
+                      const Expanded(
+                        child: SectionTitle(tag: 'ENERGY', title: '各項挑戰'),
+                      ),
                       Text(
                         '第 ${store.weekNumber} 週',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
@@ -95,49 +100,49 @@ class PlayerScreen extends StatelessWidget {
                       crossAxisSpacing: 8,
                     ),
                     itemCount: items.length,
-                    itemBuilder: (context, i) => EnergyTile(
-                      item: items[i],
-                      progress: player.progress(items[i], challenge, today),
-                    ),
+                    itemBuilder: (context, i) =>
+                        EnergyTile(item: items[i], progress: player.progress(items[i], challenge, today)),
                   ),
                   if (player.isMe) ...[
-                  const SizedBox(height: 22),
-                  const SectionTitle(tag: 'REFLECT', title: '最近注意到的事'),
-                  const SizedBox(height: 10),
-                  if (notes.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: Text('還沒有紀錄', style: TextStyle(color: PixelColors.muted))),
-                    )
-                  else
-                    for (final (date, note) in notes)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: PixelBox(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  PixelTag('DAY ${challenge.dayNumber(date)}'),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    formatDate(date),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: PixelColors.muted,
+                    const SizedBox(height: 22),
+                    const SectionTitle(tag: 'REFLECT', title: '最近注意到的事'),
+                    const SizedBox(height: 10),
+                    if (notes.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text('還沒有紀錄', style: TextStyle(color: PixelColors.muted)),
+                        ),
+                      )
+                    else
+                      for (final (date, note) in notes)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: PixelBox(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    PixelTag('DAY ${challenge.dayNumber(date)}'),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      formatDate(date),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: PixelColors.muted,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text('💭 $note', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                            ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text('💭 $note', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
                   ],
                 ],
               ),

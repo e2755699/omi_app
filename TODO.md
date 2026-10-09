@@ -1,5 +1,22 @@
 # omi_app TODO
 
+## Supabase 後端（2026-10-10）
+
+- [x] 擁有者選定 Supabase 與 Discord 登入；確認使用 `e2755699's Org`
+- [x] 建立東京區 `omi-app-dev`，資料表、RLS、群組 RPC、私人照片 bucket
+- [x] 本機 51 項資料庫斷言、雲端交易測試與 Security Advisor 驗證
+- [x] 登入放在教學最後；可先在本機使用；訪客不顯示其他玩家與假加油
+- [x] OAuth 前保存教學草稿，返回或重開仍停在最後一步；首頁保留帳號入口
+- [ ] Discord 應用條款確認、provider 與 redirect allow list 設定，三平台實測
+- [x] 帳號／群組隔離的 SQLite 離線佇列、衝突處理、資料匯入與照片同步程式；32 項 Flutter 測試
+- [x] 真實隊友、邀請碼與加油介面；切空間關閉舊編輯頁，登出清除隊友
+- [x] Web SQLite／IndexedDB 持久儲存 Chrome 實測
+- [ ] Discord 登入後雙裝置、斷線、Storage HTTP 與帳號切換端到端實測
+- [ ] 雲端小工具背景打卡（目前引導開啟 App）、群組照片牆、照片孤兒檔清理
+- [ ] 帳號刪除、資料刪除與雲端隱私政策
+
+設計與目前驗收：[docs/backend/supabase-plan.md](docs/backend/supabase-plan.md)。
+
 ## 之後發想
 
 - **🏅 實體獎章**：達成某種成就就拿到一個實體獎章，可以當裝飾放在家裡、用魔鬼氈貼在包包上，或掛在包包上當吊飾。

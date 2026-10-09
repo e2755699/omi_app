@@ -3,6 +3,8 @@
 > 狀態（2026-10-06）：**第一次真實發布 1.0.0 (1) 已內測可用，外部測試已送 Beta 審查**（等 Apple 結果）。Codemagic → GitHub 的自動觸發因 token 無效失敗，該次改用 `gh` 手動補查；換好 token 後再驗一次。細節見「驗收矩陣」。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
+> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。本輪只建置本機 APK／Web，沒有觸發 iOS 發布；Discord 與真機驗收尚待完成，詳見 [後端規劃](../backend/supabase-plan.md)。
+
 ## 怎麼發布
 
 | 改了什麼 | 打什麼 tag | 結果 |

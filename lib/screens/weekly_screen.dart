@@ -35,6 +35,13 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
       TextEditingController(text: _noteAt(i)),
   ];
   bool _busy = false;
+  late final String _scope;
+
+  @override
+  void initState() {
+    super.initState();
+    _scope = widget.store.dataScope;
+  }
 
   ChallengeStore get _store => widget.store;
 
@@ -52,6 +59,7 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
   }
 
   Future<void> _save() async {
+    if (_scope != _store.dataScope) return;
     final answers = [for (final controller in _answers) controller.text];
     await _store.saveNotes(_review, _date, answers);
   }
@@ -60,7 +68,7 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
     setState(() => _busy = true);
     try {
       final ref = await PhotoStore.pick(source: source, key: 'W${dateKey(weekStart(_date))}');
-      if (ref != null) await _store.setPhoto(_date, ref);
+      if (ref != null && _scope == _store.dataScope) await _store.setPhoto(_date, ref);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -13,6 +13,7 @@ import '../widgets/player_card.dart';
 import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import 'title_screen.dart';
+import 'account_screen.dart';
 
 const _avatars = ['😀', '😎', '🦊', '🐻', '🐱', '🐼', '🦁', '🐸', '🐧', '🦄', '🐯', '🐶'];
 
@@ -27,8 +28,8 @@ const _pillarIntro = {
 /// Jimmy 給的每日心得例子：教學裡可以點一下直接填進去。
 const _noticedExamples = ['今天忘記閱讀', '太忙了沒有跑步', '感冒所以喝很多水', '早上運動比較簡單'];
 
-/// [_Step.intro] 是 STEP 0 的標題畫面（介紹 Omi），後面才是 STEP 1–10。
-enum _Step { intro, welcome, player, start, move, nourish, learn, recover, reflect, plan, ready }
+/// [_Step.intro] 是 STEP 0 的標題畫面，最後一步可登入或先在本機使用。
+enum _Step { intro, welcome, player, start, move, nourish, learn, recover, reflect, plan, ready, account }
 
 /// 設定教學：嚮導一步一步介紹規則，邊介紹邊完成個人設定，最後產生自己的儀表板。
 /// 步驟照 Mindy 的「Omi Challenge Setup」表：決定加入 → 設定 → Week 1 計畫。
@@ -43,15 +44,27 @@ class SetupTutorial extends StatefulWidget {
 }
 
 class _SetupTutorialState extends State<SetupTutorial> {
+  late final String _scope;
+  @override
+  void initState() {
+    super.initState();
+    _scope = widget.store.dataScope;
+  }
   late final Profile _initial = widget.store.profile;
   // 已經設定過（從首頁「重新設定」進來）就跳過標題畫面。
-  late var _step = widget.store.isSetUp ? _Step.welcome : _Step.intro;
-  late final _name = TextEditingController(text: widget.store.isSetUp ? _initial.name : '');
+  late var _step = widget.store.pendingAccountStep
+      ? _Step.account
+      : widget.store.isSetUp
+      ? _Step.welcome
+      : _Step.intro;
+  late final _name = TextEditingController(
+    text: widget.store.isSetUp || widget.store.pendingAccountStep ? _initial.name : '',
+  );
   late final _weight = TextEditingController(text: _formatWeight(_initial.weightKg));
   late final _book = TextEditingController(text: _initial.book);
   late final _week1Move = TextEditingController(text: _initial.week1Move);
   late final _week1Obstacle = TextEditingController(text: _initial.week1Obstacle);
-  final _noticed = TextEditingController();
+  late final _noticed = TextEditingController(text: widget.store.setupNoticedDraft);
   late String _avatar = _initial.avatar;
   late DateTime _startDate = _initial.startDate ?? _store.today;
   late final Set<String> _nourish = {..._initial.nourishChoice};
@@ -132,20 +145,27 @@ class _SetupTutorialState extends State<SetupTutorial> {
 
   Future<void> _next() async {
     FocusScope.of(context).unfocus();
-    if (_step != _Step.ready) {
+    if (_step != _Step.account) {
       setState(() => _step = _Step.values[_step.index + 1]);
       return;
     }
     setState(() => _saving = true);
     final navigator = Navigator.of(context);
-    await _store.finishSetup(_draft);
-    // 教學裡寫的那句心得，開跑日是今天的話就直接算今天的紀錄。
     final noticed = _noticed.text.trim();
-    if (noticed.isNotEmpty && _store.canLogOn(_store.today)) {
-      await _store.saveNotes(itemById('noticed'), _store.today, [noticed]);
+    try {
+      if (_scope != _store.dataScope) throw StateError('帳號或群組已切換');
+      await _store.finishSetup(_draft);
+      // 教學裡寫的那句心得，開跑日是今天的話就直接算今天的紀錄。
+      if (_scope == _store.dataScope && noticed.isNotEmpty && _store.canLogOn(_store.today)) {
+        await _store.saveNotes(itemById('noticed'), _store.today, [noticed]);
+      }
+      // 從首頁「重新設定」進來的要關掉；第一次使用時 App 會自己換到首頁。
+      if (navigator.canPop()) navigator.pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('設定還沒存好，請再試一次。')));
     }
-    // 從首頁「重新設定」進來的要關掉；第一次使用時 App 會自己換到首頁。
-    if (navigator.canPop()) navigator.pop();
   }
 
   void _back() {
@@ -199,7 +219,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
               Expanded(
                 flex: 2,
                 child: _NavKey(
-                  label: _step == _Step.ready ? '進入我的儀表板' : '下一步',
+                  label: _step == _Step.account ? (_store.isCloud ? '儲存群組設定' : '先在本機使用') : '下一步',
                   primary: true,
                   onTap: _canContinue && !_saving ? _next : null,
                 ),
@@ -243,6 +263,9 @@ class _SetupTutorialState extends State<SetupTutorial> {
     _Step.reflect => _reflect(),
     _Step.plan => _plan(),
     _Step.ready => _ready(),
+    _Step.account => [
+      AccountPanel(account: _store.account, beforeSignIn: () => _store.saveSetupDraft(_draft, _noticed.text)),
+    ],
   };
 
   List<Widget> _welcome() => [
@@ -384,7 +407,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
         text: locked
             ? '你的挑戰已經從 ${formatDate(_startDate)} 開跑了，結束日是 ${formatShortDate(challengeEnd)}。'
             : '決定加入 The Omi Challenge！結束日大家都一樣是 ${formatShortDate(challengeEnd)}；'
-                '開跑日你自己選：今天就開始，或是從下週一開始，讓每一週都是完整的週一到週日。',
+                  '開跑日你自己選：今天就開始，或是從下週一開始，讓每一週都是完整的週一到週日。',
       ),
       const SizedBox(height: 20),
       option(today, '從今天開始', formatDate(today)),
@@ -410,11 +433,17 @@ class _SetupTutorialState extends State<SetupTutorial> {
       const SizedBox(height: 10),
       const Row(
         children: [
-          Expanded(child: _MockKey(emoji: '🏃', title: '有氧', color: Color(0xFFF29F05))),
+          Expanded(
+            child: _MockKey(emoji: '🏃', title: '有氧', color: Color(0xFFF29F05)),
+          ),
           SizedBox(width: 8),
-          Expanded(child: _MockKey(emoji: '🏋️', title: '肌力', color: Color(0xFFF29F05))),
+          Expanded(
+            child: _MockKey(emoji: '🏋️', title: '肌力', color: Color(0xFFF29F05)),
+          ),
           SizedBox(width: 8),
-          Expanded(child: _MockKey(emoji: '📖', title: '閱讀', color: Color(0xFF3A86FF))),
+          Expanded(
+            child: _MockKey(emoji: '📖', title: '閱讀', color: Color(0xFF3A86FF)),
+          ),
         ],
       ),
       const SizedBox(height: 16),
@@ -432,9 +461,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
 
   List<Widget> _nourishStep() {
     return [
-      const GuideBubble(
-        text: 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請至少選兩項（三項全選也可以），而且整個挑戰都要維持同樣的選擇喔！',
-      ),
+      const GuideBubble(text: 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請至少選兩項（三項全選也可以），而且整個挑戰都要維持同樣的選擇喔！'),
       const SizedBox(height: 20),
       const Text('每個人都要做', style: TextStyle(fontWeight: FontWeight.w900)),
       const SizedBox(height: 8),
@@ -462,11 +489,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
         controller: _weight,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(
-          labelText: '你的體重',
-          suffixText: 'kg',
-          helperText: '用來算你每天要吃多少蛋白質、喝多少水，之後可以改',
-        ),
+        decoration: const InputDecoration(labelText: '你的體重', suffixText: 'kg', helperText: '用來算你每天要吃多少蛋白質、喝多少水，之後可以改'),
       ),
       const SizedBox(height: 12),
       _TipBox(
@@ -643,7 +666,9 @@ class _SetupTutorialState extends State<SetupTutorial> {
                 children: [
                   Text(draft.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 4),
-                  _summaryLine('開跑：${formatDate(challenge.start)} → ${formatShortDate(challenge.end)}，${challenge.totalDays} 天'),
+                  _summaryLine(
+                    '開跑：${formatDate(challenge.start)} → ${formatShortDate(challenge.end)}，${challenge.totalDays} 天',
+                  ),
                   _summaryLine('Nourish：0 酒精、${chosen.join('、')}'),
                   _summaryLine('作息：${formatClock(draft.bedtime!)} 睡、${formatClock(draft.wakeTime!)} 起'),
                   if (draft.book.trim().isNotEmpty) _summaryLine('讀：${draft.book.trim()}'),
@@ -707,6 +732,7 @@ const _stepLabels = [
   'REFLECT 反思',
   'WEEK 1 計畫',
   '完成！',
+  '登入或先在本機使用',
 ];
 
 /// 寬螢幕左邊的步驟清單：做完的打勾、現在這步加粗框。
@@ -940,7 +966,9 @@ class _PixelTimeSheetState extends State<_PixelTimeSheet> {
     height: 56,
     child: Keycap(
       onTap: onTap,
-      child: Center(child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+      child: Center(
+        child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+      ),
     ),
   );
 
@@ -974,7 +1002,9 @@ class _PixelTimeSheetState extends State<_PixelTimeSheet> {
             child: Keycap(
               faceColor: PixelColors.yellow,
               onTap: () => Navigator.of(context).pop(_minutes),
-              child: const Center(child: Text('好了', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+              child: const Center(
+                child: Text('好了', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+              ),
             ),
           ),
         ],
@@ -1040,7 +1070,10 @@ class _PhotoPreview extends StatelessWidget {
                 children: [
                   PixelText('WEEK 1', dot: 3, color: PixelColors.muted),
                   SizedBox(height: 6),
-                  Text('這週的一張照片會放在這裡', style: TextStyle(fontWeight: FontWeight.w800, color: PixelColors.muted)),
+                  Text(
+                    '這週的一張照片會放在這裡',
+                    style: TextStyle(fontWeight: FontWeight.w800, color: PixelColors.muted),
+                  ),
                 ],
               ),
             ),
