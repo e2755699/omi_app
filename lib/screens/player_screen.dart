@@ -27,7 +27,8 @@ class PlayerScreen extends StatelessWidget {
         final today = store.today;
         final summary = player.summary(challenge, today);
         final items = player.items;
-        final notes = player.recentNotes(challenge, today);
+        // 心得只給自己看，隊友只看得到打卡（擁有者決定）。
+        final notes = player.isMe ? player.recentNotes(challenge, today) : const <(DateTime, String)>[];
 
         return Scaffold(
           appBar: AppBar(
@@ -99,6 +100,7 @@ class PlayerScreen extends StatelessWidget {
                       progress: player.progress(items[i], challenge, today),
                     ),
                   ),
+                  if (player.isMe) ...[
                   const SizedBox(height: 22),
                   const SectionTitle(tag: 'REFLECT', title: '最近注意到的事'),
                   const SizedBox(height: 10),
@@ -136,6 +138,7 @@ class PlayerScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                  ],
                 ],
               ),
             ),

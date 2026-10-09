@@ -10,9 +10,10 @@ import '../widgets/pixel_ui.dart';
 import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import '../widgets/week_strip.dart';
+import 'weekly_screen.dart';
 
-/// 每日打卡：一顆一顆鍵帽，按下去就是已打卡；下面寫 Reflect（今天我注意到的事），
-/// 每週回顧、下週計畫、照片也在這裡。
+/// 每日打卡：一顆一顆鍵帽，按下去就是已打卡；下面寫 Reflect（今天我注意到的事）。
+/// 每週回顧和照片在「本週任務」（WeeklyScreen）。
 class DailyRecordScreen extends StatefulWidget {
   const DailyRecordScreen({super.key, required this.store});
 
@@ -25,14 +26,10 @@ class DailyRecordScreen extends StatefulWidget {
 class _DailyRecordScreenState extends State<DailyRecordScreen> {
   static final _noticed = itemById('noticed');
   static final _review = itemById('review');
-  static final _plan = itemById('plan');
   static final _photo = itemById('photo');
 
   late DateTime _date = widget.store.today;
   final _noticedText = TextEditingController();
-  final _reviewTexts = [for (var i = 0; i < _review.prompts.length; i++) TextEditingController()];
-  final _planText = TextEditingController();
-  late bool _weeklyOpen;
 
   ChallengeStore get _store => widget.store;
 
@@ -40,45 +37,24 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   void initState() {
     super.initState();
     _loadNotes();
-    // 週末或這週已經開始寫了，就直接展開每週回顧。
-    _weeklyOpen =
-        _date.weekday >= DateTime.saturday ||
-        _store.entryOn(_review, _date).isDone ||
-        _store.entryOn(_plan, _date).isDone;
   }
 
   @override
   void dispose() {
     _noticedText.dispose();
-    for (final controller in _reviewTexts) {
-      controller.dispose();
-    }
-    _planText.dispose();
     super.dispose();
   }
 
   void _loadNotes() {
-    String note(ChallengeItem item, int i) {
-      final notes = _store.entryOn(item, _date).notes;
-      return i < notes.length ? notes[i] : '';
-    }
-
-    _noticedText.text = note(_noticed, 0);
-    for (var i = 0; i < _reviewTexts.length; i++) {
-      _reviewTexts[i].text = note(_review, i);
-    }
-    _planText.text = note(_plan, 0);
+    final notes = _store.entryOn(_noticed, _date).notes;
+    _noticedText.text = notes.isNotEmpty ? notes.first : '';
   }
 
   Future<void> _saveNotes() async {
     // 先把字讀出來：離開畫面時 controller 可能接著就被 dispose 了。
     final date = _date;
     final noticed = [_noticedText.text];
-    final review = [for (final controller in _reviewTexts) controller.text];
-    final plan = [_planText.text];
     await _store.saveNotes(_noticed, date, noticed);
-    await _store.saveNotes(_review, date, review);
-    await _store.saveNotes(_plan, date, plan);
   }
 
   Future<void> _selectDay(DateTime date) async {
@@ -115,8 +91,10 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       case ItemKind.weeklyAmount:
         // 肌力：按一下就是今天做了一次，再按一下取消。
         _store.setAmount(item, _date, _store.entryOn(item, _date).isDone ? 0 : item.step);
-      case ItemKind.daily || ItemKind.weekly:
+      case ItemKind.daily:
         _store.toggle(item, _date);
+      case ItemKind.weekly:
+        break;
     }
   }
 
@@ -178,8 +156,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 130,
-                mainAxisExtent: 128,
+                maxCrossAxisExtent: 136,
+                mainAxisExtent: 134,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
               ),
@@ -195,13 +173,24 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
           final reflect = [
             const SectionTitle(tag: 'REFLECT', title: '今天我注意到的事'),
             const SizedBox(height: 6),
-            const Text('每日微反思：記下一件今天注意到的事，一句話就好', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
+            const Text('每日微反思：記下一件今天注意到的事或心得，一句話就好；沒做到的也寫在這裡', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
             const SizedBox(height: 10),
             TextField(
               controller: _noticedText,
               minLines: 3,
               maxLines: 6,
-              decoration: const InputDecoration(hintText: '例如：午餐後散步，下午比較有精神'),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(hintText: '例如：今天忘記閱讀、太忙了沒有跑步、感冒所以喝很多水、早上運動比較簡單'),
+            ),
+            const SizedBox(height: 8),
+            // 照今天的打卡狀況給幾句現成的：沒按的先給「沒做到」的寫法，按了的給心得的寫法。點一下填進去。
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final suggestion in _noteSuggestions(keys))
+                  _SuggestionChip(text: suggestion, onTap: () => _appendNote(suggestion)),
+              ],
             ),
             const SizedBox(height: 22),
             _weeklySection(),
@@ -252,6 +241,53 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     );
   }
 
+  /// 每個項目「沒做到」和「做到了」的現成句子（Jimmy 給的例子加上同一種口吻）。
+  static const _missPhrases = {
+    'aerobic': '太忙了沒有運動',
+    'strength': '今天沒練肌力',
+    'alcohol': '今天喝了一杯',
+    'produce': '蔬果沒吃夠',
+    'protein': '蛋白質沒吃夠',
+    'water': '水喝太少了',
+    'reading': '今天忘記閱讀',
+    'sleep': '睡不到 8 小時',
+    'schedule': '今天晚睡了',
+  };
+  static const _donePhrases = {
+    'aerobic': '早上運動比較簡單',
+    'strength': '肌力練完很有感',
+    'alcohol': '聚餐也撐住沒喝',
+    'produce': '今天蔬菜吃得比平常多',
+    'protein': '蛋白質有吃夠',
+    'water': '多喝水之後比較不想吃零食',
+    'reading': '睡前讀 20 分鐘比較好睡',
+    'sleep': '睡飽精神好',
+    'schedule': '準時上床了',
+  };
+
+  /// 今天的建議句：沒按的項目先給「沒做到」的句子，再補兩句做到的，最多 6 句。
+  List<String> _noteSuggestions(List<ChallengeItem> keys) {
+    final misses = [
+      for (final item in keys)
+        if (!_store.entryOn(item, _date).isDone && _missPhrases[item.id] != null) _missPhrases[item.id]!,
+    ];
+    final dones = [
+      for (final item in keys)
+        if (_store.entryOn(item, _date).isDone && _donePhrases[item.id] != null) _donePhrases[item.id]!,
+    ];
+    final current = _noticedText.text;
+    return [
+      for (final phrase in [...misses.take(4), ...dones.take(6 - misses.take(4).length)])
+        if (!current.contains(phrase)) phrase,
+    ];
+  }
+
+  /// 把建議句填進去：空的就直接放，已經有字就接在後面。
+  void _appendNote(String phrase) {
+    final current = _noticedText.text.trim();
+    setState(() => _noticedText.text = current.isEmpty ? phrase : '$current，$phrase');
+  }
+
   String _legend(ChallengeItem item) {
     if (item.kind == ItemKind.weeklyAmount) {
       final today = _store.entryOn(item, _date).amount;
@@ -261,64 +297,58 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     return itemTarget(item, _store.profile);
   }
 
+  /// 每週回顧和照片在「本週任務」，這裡只放一個入口。
   Widget _weeklySection() {
-    final weeklyDone = [_review, _plan, _photo].where((item) => _store.progress(item).doneNow).length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PixelBox(
-          onTap: () => setState(() => _weeklyOpen = !_weeklyOpen),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              const PixelTag('WEEKLY'),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text('每週回顧・計畫・照片', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-              ),
-              PixelText('$weeklyDone/3', dot: 2),
-              Icon(_weeklyOpen ? Icons.expand_less : Icons.expand_more),
-            ],
-          ),
-        ),
-        if (_weeklyOpen) ...[
-          const SizedBox(height: 10),
-          const Text('建議週末寫，一週寫一次就好', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
-          const SizedBox(height: 12),
-          Text('${_review.emoji} ${_review.title}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-          for (var i = 0; i < _review.prompts.length; i++) ...[
-            const SizedBox(height: 10),
-            Text('${i + 1}. ${_review.prompts[i]}', style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            TextField(controller: _reviewTexts[i], minLines: 2, maxLines: 4),
-          ],
-          const SizedBox(height: 18),
-          Text('${_plan.emoji} ${_plan.title}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
-          Text(_plan.prompts.first, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _planText,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(hintText: '例如：一三五晨跑 40 分鐘、二四做肌力'),
-          ),
-          const SizedBox(height: 18),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 130,
-              height: 128,
-              child: _ItemKey(
-                item: _photo,
-                on: _store.entryOn(_photo, _date).isDone,
-                legend: '這週留下照片了',
-                onTap: () => _tapKey(_photo),
-              ),
+    final answered = _store.progress(_review).value;
+    final hasPhoto = _store.entryOn(_photo, _date).isDone;
+    return PixelBox(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => WeeklyScreen(store: _store, date: _date)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          const PixelTag('WEEKLY'),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('本週任務：回顧三題・一張照片', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                Text(
+                  '回顧 $answered/${_review.prompts.length} 題 · 照片${hasPhoto ? '已留' : '還沒'}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
+                ),
+              ],
             ),
           ),
+          const Icon(Icons.chevron_right),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+/// 心得的建議句：點一下填進輸入框。
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: PixelColors.paper,
+          border: Border.all(color: PixelColors.ink, width: 2),
+        ),
+        child: Text('＋ $text', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+      ),
     );
   }
 }

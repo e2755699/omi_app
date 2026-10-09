@@ -4,6 +4,7 @@ import '../data/challenge_store.dart';
 import '../data/home_widget_bridge.dart';
 import '../models/challenge.dart';
 import '../models/progress.dart';
+import '../models/rules.dart';
 import '../widgets/energy_tile.dart';
 import '../widgets/pixel_text.dart';
 import '../widgets/pixel_ui.dart';
@@ -12,10 +13,13 @@ import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import 'daily_record_screen.dart';
 import 'item_detail_sheet.dart';
+import 'photo_wall_screen.dart';
 import 'player_screen.dart';
 import 'setup_tutorial.dart';
+import 'weekly_screen.dart';
+import 'widget_preview_screen.dart';
 
-/// 首頁：挑戰進度 → 各項挑戰的能量槽 → 每日打卡 → 大家的進度。
+/// 首頁：挑戰進度 → 各項挑戰的能量槽 → 每日打卡 → 本週任務 → 大家的進度。
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.store});
 
@@ -86,6 +90,8 @@ class HomeScreen extends StatelessWidget {
                               _ChallengeHud(store: store),
                               const SizedBox(height: 16),
                               _CheckInCard(store: store, summary: summary),
+                              const SizedBox(height: 16),
+                              _WeeklyCard(store: store),
                             ],
                           ),
                         ),
@@ -122,6 +128,10 @@ class HomeScreen extends StatelessWidget {
                           sliver: SliverToBoxAdapter(
                             child: _CheckInCard(store: store, summary: summary),
                           ),
+                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          sliver: SliverToBoxAdapter(child: _WeeklyCard(store: store)),
                         ),
                         ..._playerSlivers(context, players, summaries),
                       ],
@@ -246,6 +256,7 @@ class _ChallengeHud extends StatelessWidget {
     final remaining = total - dayNumber;
     final daysToStart = daysBetween(today, challenge.start);
 
+    final achieved = store.me.completeDays(challenge, today);
     final (String tag, String big, String caption) = switch (store.phase) {
       ChallengePhase.notStarted => (
         'READY?',
@@ -255,9 +266,9 @@ class _ChallengeHud extends StatelessWidget {
       ChallengePhase.ongoing => (
         'DAY',
         '$dayNumber/$total',
-        '第 ${store.weekNumber} 週 · ${remaining == 0 ? '最後一天，衝啊！' : '還剩 $remaining 天'}',
+        '第 ${store.weekNumber} 週 · ${remaining == 0 ? '最後一天，衝啊！' : '還剩 $remaining 天'} · ⚡ 達成 $achieved 天',
       ),
-      ChallengePhase.finished => ('CLEAR!', '$total/$total', '挑戰完成 🎉 辛苦大家了！'),
+      ChallengePhase.finished => ('CLEAR!', '$total/$total', '挑戰完成 🎉 達成 $achieved 天，辛苦大家了！'),
     };
 
     return PixelBox(
@@ -303,6 +314,7 @@ class _CheckInCard extends StatelessWidget {
     final ongoing = store.phase == ChallengePhase.ongoing;
     final checkedIn = ongoing && me.checkedInOn(store.challenge, store.today);
     final streak = me.checkInStreak(store.challenge, store.today);
+    final achieved = me.completeDays(store.challenge, store.today);
     final cheers = store.cheersFor(me.id);
 
     final String label;
@@ -323,7 +335,7 @@ class _CheckInCard extends StatelessWidget {
             children: [
               const PixelText('DAILY', dot: 2, color: PixelColors.muted),
               const Spacer(),
-              if (streak > 0) _StreakBadge(days: streak),
+              if (ongoing) _AchievedBadge(days: achieved),
             ],
           ),
           const SizedBox(height: 12),
@@ -381,6 +393,14 @@ class _CheckInCard extends StatelessWidget {
                   ),
               ],
             ),
+            // 連續天數保留，但放在不顯眼的位置（擁有者決定）。
+            if (streak > 1) ...[
+              const SizedBox(height: 4),
+              Text(
+                '🔥 連續記錄 $streak 天',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: PixelColors.muted.withValues(alpha: 0.8)),
+              ),
+            ],
           ],
         ],
       ),
@@ -388,8 +408,9 @@ class _CheckInCard extends StatelessWidget {
   }
 }
 
-class _StreakBadge extends StatelessWidget {
-  const _StreakBadge({required this.days});
+/// 每日項目全部完成的天數：首頁主要的數字。
+class _AchievedBadge extends StatelessWidget {
+  const _AchievedBadge({required this.days});
 
   final int days;
 
@@ -398,10 +419,97 @@ class _StreakBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: PixelColors.orange,
+        color: PixelColors.yellow,
         border: Border.all(color: PixelColors.ink, width: 2),
       ),
-      child: Text('🔥 連續 $days 天', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+      child: Text('⚡ 達成 $days 天', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+    );
+  }
+}
+
+/// 本週任務：每週回顧三題、一張照片。週五起變醒目，點了直接進去寫。
+class _WeeklyCard extends StatelessWidget {
+  const _WeeklyCard({required this.store});
+
+  final ChallengeStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final ongoing = store.phase == ChallengePhase.ongoing;
+    final review = itemById('review');
+    final answered = store.progress(review).value;
+    final hasPhoto = store.photoOn(store.today) != null;
+    final done = answered >= review.prompts.length && hasPhoto;
+    final urgent = ongoing && !done && store.today.weekday >= DateTime.friday;
+    return PixelBox(
+      color: urgent ? PixelColors.yellow : PixelColors.paper,
+      onTap: ongoing
+          ? () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WeeklyScreen(store: store)))
+          : null,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const PixelText('WEEKLY', dot: 2, color: PixelColors.muted),
+              const SizedBox(width: 8),
+              Text(
+                '第 ${store.weekNumber} 週',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
+              ),
+              const Spacer(),
+              if (ongoing)
+                IconButton(
+                  tooltip: '照片牆',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => PhotoWallScreen(store: store)),
+                  ),
+                  icon: const Icon(Icons.grid_view),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            done ? '本週任務完成 ✓' : '本週任務：回顧三題・一張照片',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _WeeklyChip(label: '🔍 回顧 $answered/${review.prompts.length} 題', done: answered >= review.prompts.length),
+              const SizedBox(width: 8),
+              _WeeklyChip(label: hasPhoto ? '📷 照片已留' : '📷 照片還沒', done: hasPhoto),
+              const Spacer(),
+              if (ongoing) const Icon(Icons.chevron_right),
+            ],
+          ),
+          if (urgent) ...[
+            const SizedBox(height: 6),
+            const Text('週日前寫好，一週一次就好', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyChip extends StatelessWidget {
+  const _WeeklyChip({required this.label, required this.done});
+
+  final String label;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: done ? PixelColors.green.withValues(alpha: 0.2) : Colors.white,
+        border: Border.all(color: PixelColors.ink, width: 2),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -431,7 +539,7 @@ class _PreviewBanner extends StatelessWidget {
   }
 }
 
-enum _DemoAction { previewDate, addWidget, reset, licenses }
+enum _DemoAction { previewDate, addWidget, widgetPreview, reset, licenses }
 
 /// Demo 工具：換日期看不同階段、把小工具加到桌面、清掉資料重新開始教學。
 class _DemoMenu extends StatelessWidget {
@@ -474,6 +582,12 @@ class _DemoMenu extends StatelessWidget {
             await _pickPreviewDate(context);
           case _DemoAction.addWidget:
             await _addWidget(context);
+          case _DemoAction.widgetPreview:
+            if (context.mounted) {
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => WidgetPreviewScreen(store: store)),
+              );
+            }
           case _DemoAction.reset:
             await store.resetAll();
           case _DemoAction.licenses:
@@ -487,7 +601,8 @@ class _DemoMenu extends StatelessWidget {
       },
       itemBuilder: (_) => const [
         PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
-        PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面')),
+        PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面（Android）')),
+        PopupMenuItem(value: _DemoAction.widgetPreview, child: Text('iOS 桌面小工具預覽（Demo）')),
         PopupMenuItem(value: _DemoAction.reset, child: Text('清除資料，重新開始教學')),
         PopupMenuItem(value: _DemoAction.licenses, child: Text('授權資訊')),
       ],

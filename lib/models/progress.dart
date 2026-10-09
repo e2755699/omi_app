@@ -155,6 +155,15 @@ class Player {
     return streak;
   }
 
+  /// 達成幾天：到今天為止，每日項目全部完成的天數（首頁主要的數字）。
+  int completeDays(Challenge challenge, DateTime today) {
+    var count = 0;
+    for (var day = 1; day <= challenge.elapsedDays(today); day++) {
+      if (dayComplete(challenge, challenge.dateOfDay(day))) count++;
+    }
+    return count;
+  }
+
   /// 每日項目全部完成的那幾天。
   bool dayComplete(Challenge challenge, DateTime date) =>
       challenge.contains(date) &&

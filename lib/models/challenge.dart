@@ -51,12 +51,21 @@ class Challenge {
 
 enum ChallengePhase { notStarted, ongoing, finished }
 
-/// 10/9 → 1/16，剛好 100 天。
-final defaultChallenge = Challenge(
-  title: '100 天挑戰',
-  start: DateTime(2026, 10, 9),
-  end: DateTime(2027, 1, 16),
-);
+/// 結束日固定 12/31（擁有者決定）；開跑日是每個人開始用 App 的那天。
+final challengeEnd = DateTime(2026, 12, 31);
+
+/// 主辦（Mindy、Jimmy）的第一輪 Day 1：還沒設定時先用這天介紹，剛好 84 天。
+final officialStart = DateTime(2026, 10, 9);
+
+/// 從 [start] 到 12/31 的挑戰；開始日晚於 12/31 就只剩最後一天。
+Challenge challengeStarting(DateTime start) {
+  final first = dateOnly(start).isAfter(challengeEnd) ? challengeEnd : dateOnly(start);
+  final days = daysBetween(first, challengeEnd) + 1;
+  return Challenge(title: '$days 天挑戰', start: first, end: challengeEnd);
+}
+
+/// [d] 之後的下一個週一（[d] 本身是週一也算下一週）。
+DateTime nextMonday(DateTime d) => DateTime(d.year, d.month, d.day + (8 - d.weekday));
 
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 

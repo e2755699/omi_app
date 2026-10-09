@@ -202,20 +202,9 @@ const challengeItems = <ChallengeItem>[
     emoji: '🔍',
     title: '每週回顧',
     shortTitle: '回顧',
-    rule: '每週回答三個問題：這週什麼做得好，為什麼？什麼遇到困難或阻礙，為什麼？下週要保留、改變什麼？',
+    rule: '每週回答三個問題：這週什麼做得好，為什麼？什麼遇到困難或阻礙，為什麼？下週要保留、改變什麼？（第三題就是下週的計畫）',
     goal: '回答 3 個問題',
     prompts: ['這週什麼做得好？為什麼？', '什麼遇到困難或阻礙？為什麼？', '下週要保留、改變什麼？'],
-  ),
-  ChallengeItem(
-    id: 'plan',
-    pillar: Pillar.reflect,
-    kind: ItemKind.weekly,
-    emoji: '🗓️',
-    title: '下週計畫',
-    shortTitle: '計畫',
-    rule: '提前安排下一週，尤其是每週的 Move 項目',
-    goal: '排好下週的 Move',
-    prompts: ['下週怎麼安排？（尤其是 Move）'],
   ),
   ChallengeItem(
     id: 'photo',
@@ -240,7 +229,7 @@ List<ChallengeItem> activeItems(Profile profile) => [
         if (!item.nourishOption || profile.nourishChoice.contains(item.id)) item,
     ];
 
-/// 依個人設定算出來的目標，例如體重 60 kg → 每天 72 g 蛋白質。
+/// 依個人設定算出來的目標，例如體重 60 kg → 每天 72 g 蛋白質；沒填體重就顯示規則。
 String itemTarget(ChallengeItem item, Profile profile) {
   final weight = profile.weightKg;
   final bedtime = profile.bedtime;

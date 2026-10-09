@@ -19,27 +19,27 @@ class _Demo {
 const _demos = [
   _Demo(
     'an',
-    Profile(name: '小安', avatar: '🦊', weightKg: 55, nourishChoice: {'produce', 'water'}, bedtime: 23 * 60, wakeTime: 7 * 60),
+    Profile(name: '小安', avatar: '🦊', nourishChoice: {'produce', 'water'}, bedtime: 23 * 60, wakeTime: 7 * 60),
     0.9,
   ),
   _Demo(
     'mia',
-    Profile(name: 'Mia', avatar: '🐱', weightKg: 50, nourishChoice: {'protein', 'water'}, bedtime: 22 * 60 + 30, wakeTime: 6 * 60 + 30),
+    Profile(name: 'Mia', avatar: '🐱', nourishChoice: {'protein', 'water'}, bedtime: 22 * 60 + 30, wakeTime: 6 * 60 + 30),
     0.7,
   ),
   _Demo(
     'zhe',
-    Profile(name: '阿哲', avatar: '🐻', weightKg: 72, nourishChoice: {'produce', 'protein'}, bedtime: 24 * 60 - 30, wakeTime: 7 * 60 + 30),
+    Profile(name: '阿哲', avatar: '🐻', nourishChoice: {'produce', 'protein'}, bedtime: 24 * 60 - 30, wakeTime: 7 * 60 + 30),
     0.5,
   ),
   _Demo(
     'ken',
-    Profile(name: 'Ken', avatar: '🦁', weightKg: 80, nourishChoice: {'protein', 'water'}, bedtime: 23 * 60, wakeTime: 7 * 60),
+    Profile(name: 'Ken', avatar: '🦁', nourishChoice: {'protein', 'water'}, bedtime: 23 * 60, wakeTime: 7 * 60),
     0.65,
   ),
   _Demo(
     'yu',
-    Profile(name: '小雨', avatar: '🐸', weightKg: 48, nourishChoice: {'produce', 'water'}, bedtime: 23 * 60 + 30, wakeTime: 7 * 60 + 30),
+    Profile(name: '小雨', avatar: '🐸', nourishChoice: {'produce', 'water'}, bedtime: 23 * 60 + 30, wakeTime: 7 * 60 + 30),
     0.2,
   ),
 ];
@@ -55,7 +55,6 @@ const _noticed = [
 
 const _weeklyNotes = {
   'review': ['（示範）運動都有照計畫做完', '（示範）週三加班，閱讀斷了一天', '（示範）下週提早排好有氧時間'],
-  'plan': ['（示範）一三五晨跑 40 分鐘、二四做肌力'],
 };
 
 /// 示範：第 [day] 天其他隊友給 [playerId] 的加油數。
@@ -97,6 +96,7 @@ ActivityLog _logFor(int index, _Demo demo, Challenge challenge, DateTime today) 
           // 每週的項目在週日（或挑戰最後一天）做。
           final weekEnd = date.weekday == DateTime.sunday || day == challenge.totalDays;
           if (!weekEnd || random.nextDouble() >= demo.rate) continue;
+          if (item.id == 'photo') continue;
           final notes = _weeklyNotes[item.id] ?? const [];
           log.set(item, date, Entry(amount: max(1, notes.length), notes: notes));
       }

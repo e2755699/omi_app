@@ -18,16 +18,20 @@ const _avatars = ['😀', '😎', '🦊', '🐻', '🐱', '🐼', '🦁', '🐸'
 
 const _pillarIntro = {
   Pillar.move: '每週有氧 150 分鐘＋肌力 2 次',
-  Pillar.nourish: '0 酒精＋飲食習慣 3 選 2',
+  Pillar.nourish: '0 酒精＋飲食習慣三選至少二',
   Pillar.learn: '每天閱讀 20 分鐘',
   Pillar.recover: '睡足 8 小時、作息固定',
   Pillar.reflect: '每天記錄，每週回顧',
 };
 
-/// [_Step.intro] 是 STEP 0 的標題畫面（介紹 Omi），後面才是 STEP 1–8。
-enum _Step { intro, welcome, player, move, nourish, learn, recover, reflect, ready }
+/// Jimmy 給的每日心得例子：教學裡可以點一下直接填進去。
+const _noticedExamples = ['今天忘記閱讀', '太忙了沒有跑步', '感冒所以喝很多水', '早上運動比較簡單'];
+
+/// [_Step.intro] 是 STEP 0 的標題畫面（介紹 Omi），後面才是 STEP 1–10。
+enum _Step { intro, welcome, player, start, move, nourish, learn, recover, reflect, plan, ready }
 
 /// 設定教學：嚮導一步一步介紹規則，邊介紹邊完成個人設定，最後產生自己的儀表板。
+/// 步驟照 Mindy 的「Omi Challenge Setup」表：決定加入 → 設定 → Week 1 計畫。
 /// 第一次打開 App 會看到；之後可以從首頁右上角「重新設定」再走一次。
 class SetupTutorial extends StatefulWidget {
   const SetupTutorial({super.key, required this.store});
@@ -44,39 +48,51 @@ class _SetupTutorialState extends State<SetupTutorial> {
   late var _step = widget.store.isSetUp ? _Step.welcome : _Step.intro;
   late final _name = TextEditingController(text: widget.store.isSetUp ? _initial.name : '');
   late final _weight = TextEditingController(text: _formatWeight(_initial.weightKg));
+  late final _book = TextEditingController(text: _initial.book);
+  late final _week1Move = TextEditingController(text: _initial.week1Move);
+  late final _week1Obstacle = TextEditingController(text: _initial.week1Obstacle);
+  final _noticed = TextEditingController();
   late String _avatar = _initial.avatar;
-  late Set<String> _nourish = {..._initial.nourishChoice};
+  late DateTime _startDate = _initial.startDate ?? _store.today;
+  late final Set<String> _nourish = {..._initial.nourishChoice};
   late int _bedtime = _initial.bedtime ?? 23 * 60;
   late int _wakeTime = _initial.wakeTime ?? 7 * 60;
   bool _saving = false;
 
   ChallengeStore get _store => widget.store;
-  Challenge get _challenge => _store.challenge;
+
+  /// 照現在選的開跑日算出來的挑戰。
+  Challenge get _challenge => challengeStarting(_startDate);
 
   static String _formatWeight(double? kg) {
     if (kg == null) return '';
     return kg == kg.roundToDouble() ? kg.round().toString() : kg.toString();
   }
 
-  bool get _needsWeight => _nourish.contains('protein') || _nourish.contains('water');
-
   double? get _weightKg {
     final kg = double.tryParse(_weight.text.trim());
     return kg != null && kg >= 20 && kg <= 300 ? kg : null;
   }
 
+  /// 選了蛋白質或飲水就需要體重，才算得出目標。
+  bool get _needsWeight => _nourish.contains('protein') || _nourish.contains('water');
+
   Profile get _draft => Profile(
     name: _name.text.trim(),
     avatar: _avatar,
+    startDate: _startDate,
     weightKg: _weightKg,
     nourishChoice: _nourish,
     bedtime: _bedtime,
     wakeTime: _wakeTime,
+    book: _book.text,
+    week1Move: _week1Move.text,
+    week1Obstacle: _week1Obstacle.text,
   );
 
   bool get _canContinue => switch (_step) {
     _Step.player => _name.text.trim().isNotEmpty,
-    _Step.nourish => _nourish.length == 2 && (!_needsWeight || _weightKg != null),
+    _Step.nourish => _nourish.length >= 2 && (!_needsWeight || _weightKg != null),
     _ => true,
   };
 
@@ -84,36 +100,32 @@ class _SetupTutorialState extends State<SetupTutorial> {
   void dispose() {
     _name.dispose();
     _weight.dispose();
+    _book.dispose();
+    _week1Move.dispose();
+    _week1Obstacle.dispose();
+    _noticed.dispose();
     super.dispose();
   }
 
   void _toggleNourish(String id) {
     setState(() {
-      if (_nourish.contains(id)) {
-        _nourish.remove(id);
-      } else if (_nourish.length < 2) {
-        _nourish.add(id);
-      } else {
-        // 已經選了兩項：換掉比較早選的那一項。
-        _nourish = {_nourish.last, id};
-      }
+      if (!_nourish.remove(id)) _nourish.add(id);
     });
   }
 
   Future<void> _pickTime({required bool bedtime}) async {
     final current = bedtime ? _bedtime : _wakeTime;
-    final picked = await showTimePicker(
+    final picked = await showModalBottomSheet<int>(
       context: context,
-      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
-      helpText: bedtime ? '幾點上床睡覺？' : '幾點起床？',
+      useSafeArea: true,
+      builder: (_) => _PixelTimeSheet(title: bedtime ? '🌙 幾點上床睡覺？' : '☀️ 幾點起床？', minutes: current),
     );
     if (picked == null) return;
     setState(() {
-      final minutes = picked.hour * 60 + picked.minute;
       if (bedtime) {
-        _bedtime = minutes;
+        _bedtime = picked;
       } else {
-        _wakeTime = minutes;
+        _wakeTime = picked;
       }
     });
   }
@@ -127,6 +139,11 @@ class _SetupTutorialState extends State<SetupTutorial> {
     setState(() => _saving = true);
     final navigator = Navigator.of(context);
     await _store.finishSetup(_draft);
+    // 教學裡寫的那句心得，開跑日是今天的話就直接算今天的紀錄。
+    final noticed = _noticed.text.trim();
+    if (noticed.isNotEmpty && _store.canLogOn(_store.today)) {
+      await _store.saveNotes(itemById('noticed'), _store.today, [noticed]);
+    }
     // 從首頁「重新設定」進來的要關掉；第一次使用時 App 會自己換到首頁。
     if (navigator.canPop()) navigator.pop();
   }
@@ -218,19 +235,21 @@ class _SetupTutorialState extends State<SetupTutorial> {
     _Step.intro => const [],
     _Step.welcome => _welcome(),
     _Step.player => _player(),
+    _Step.start => _start(),
     _Step.move => _move(),
     _Step.nourish => _nourishStep(),
     _Step.learn => _learn(),
     _Step.recover => _recover(),
     _Step.reflect => _reflect(),
+    _Step.plan => _plan(),
     _Step.ready => _ready(),
   };
 
   List<Widget> _welcome() => [
     GuideBubble(
       text:
-          '嗨！我是你的嚮導 🧭\n接下來 ${_challenge.totalDays} 天'
-          '（${formatShortDate(_challenge.start)} → ${formatShortDate(_challenge.end)}），'
+          '嗨！我是你的嚮導 🧭\n接下來到 ${formatShortDate(challengeEnd)} 為止'
+          '（從今天開始算是 ${_challenge.totalDays} 天），'
           '我們要一起練習 5 種好習慣。我帶你一步一步設定好你的挑戰儀表板！',
     ),
     const SizedBox(height: 28),
@@ -318,6 +337,63 @@ class _SetupTutorialState extends State<SetupTutorial> {
     ),
   ];
 
+  /// DAY 1 – DECIDE：決定加入，選開跑日。
+  List<Widget> _start() {
+    final today = _store.today;
+    final monday = nextMonday(today);
+    final locked = _store.startLocked;
+    Widget option(DateTime date, String title, String subtitle) {
+      final challenge = challengeStarting(date);
+      final selected = _startDate == date;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: SizedBox(
+          height: 86,
+          child: Keycap(
+            on: selected,
+            color: PixelColors.yellow,
+            onTap: locked ? null : () => setState(() => _startDate = date),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                        Text(
+                          '$subtitle · 到 ${formatShortDate(challenge.end)} 共 ${challenge.totalDays} 天',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: PixelColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (selected) const PixelText('✓', dot: 3),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      GuideBubble(
+        text: locked
+            ? '你的挑戰已經從 ${formatDate(_startDate)} 開跑了，結束日是 ${formatShortDate(challengeEnd)}。'
+            : '決定加入 The Omi Challenge！結束日大家都一樣是 ${formatShortDate(challengeEnd)}；'
+                '開跑日你自己選：今天就開始，或是從下週一開始，讓每一週都是完整的週一到週日。',
+      ),
+      const SizedBox(height: 20),
+      option(today, '從今天開始', formatDate(today)),
+      if (!monday.isAfter(challengeEnd)) option(monday, '從下週一開始', formatDate(monday)),
+      const SizedBox(height: 8),
+      const _TipBox(text: '📣 別忘了也到 Discord 留言「我要參加」，讓大家知道你加入了！'),
+    ];
+  }
+
   List<Widget> _move() {
     final aerobic = itemById('aerobic');
     final strength = itemById('strength');
@@ -330,21 +406,34 @@ class _SetupTutorialState extends State<SetupTutorial> {
       const SizedBox(height: 10),
       _RuleCard(item: strength),
       const SizedBox(height: 16),
-      const _TipBox(text: '💡 例如：一、三、五各快走 50 分鐘，二、四做肌力訓練。每天打卡時按一下，能量槽就會一格一格充滿。'),
+      const Text('打卡就是按鍵帽，先試按看看 👇', style: TextStyle(fontWeight: FontWeight.w900)),
       const SizedBox(height: 10),
-      _TipBox(
-        text:
-            '📅 第一週只有 $firstWeekDays 天（${formatShortDate(_challenge.start)} 開始），'
-            '目標照比例調整：有氧 ${firstWeek(aerobic)} 分鐘、肌力 ${firstWeek(strength)} 次。',
+      const Row(
+        children: [
+          Expanded(child: _MockKey(emoji: '🏃', title: '有氧', color: Color(0xFFF29F05))),
+          SizedBox(width: 8),
+          Expanded(child: _MockKey(emoji: '🏋️', title: '肌力', color: Color(0xFFF29F05))),
+          SizedBox(width: 8),
+          Expanded(child: _MockKey(emoji: '📖', title: '閱讀', color: Color(0xFF3A86FF))),
+        ],
       ),
+      const SizedBox(height: 16),
+      const _TipBox(text: '💡 例如：一、三、五各快走 50 分鐘，二、四做肌力訓練。每天打卡時按一下，能量槽就會一格一格充滿。'),
+      if (firstWeekDays < 7) ...[
+        const SizedBox(height: 10),
+        _TipBox(
+          text:
+              '📅 第一週只有 $firstWeekDays 天（${formatShortDate(_challenge.start)} 開始），'
+              '目標照比例調整：有氧 ${firstWeek(aerobic)} 分鐘、肌力 ${firstWeek(strength)} 次。',
+        ),
+      ],
     ];
   }
 
   List<Widget> _nourishStep() {
-    final locked = _store.nourishLocked;
     return [
-      GuideBubble(
-        text: locked ? '挑戰已經開始了，你的 3 選 2 要維持原本的選擇喔！體重可以更新。' : 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請選兩項，而且整個挑戰都要維持同樣的選擇喔！',
+      const GuideBubble(
+        text: 'NOURISH 分兩部分：「0 酒精」是每個人都要做的；另外三項請至少選兩項（三項全選也可以），而且整個挑戰都要維持同樣的選擇喔！',
       ),
       const SizedBox(height: 20),
       const Text('每個人都要做', style: TextStyle(fontWeight: FontWeight.w900)),
@@ -353,11 +442,9 @@ class _SetupTutorialState extends State<SetupTutorial> {
       const SizedBox(height: 20),
       Row(
         children: [
-          const Text('3 選 2', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          const Text('三選至少二', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
           const SizedBox(width: 10),
-          PixelText('${_nourish.length}/2', dot: 2),
-          const Spacer(),
-          if (locked) const Text('🔒 已鎖定', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+          PixelText('${_nourish.length}/3', dot: 2),
         ],
       ),
       const SizedBox(height: 10),
@@ -367,34 +454,43 @@ class _SetupTutorialState extends State<SetupTutorial> {
           child: _OptionKey(
             item: option,
             selected: _nourish.contains(option.id),
-            onTap: locked ? null : () => _toggleNourish(option.id),
+            onTap: () => _toggleNourish(option.id),
           ),
         ),
-      if (_needsWeight) ...[
-        const SizedBox(height: 8),
-        TextField(
-          controller: _weight,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: '你的體重', suffixText: 'kg', helperText: '用來算你每天要吃多少蛋白質、喝多少水'),
+      const SizedBox(height: 8),
+      TextField(
+        controller: _weight,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(
+          labelText: '你的體重',
+          suffixText: 'kg',
+          helperText: '用來算你每天要吃多少蛋白質、喝多少水，之後可以改',
         ),
-        if (_weightKg != null) ...[
-          const SizedBox(height: 12),
-          _TipBox(
-            text: [
-              for (final id in ['protein', 'water'])
-                if (_nourish.contains(id)) '🎯 ${itemTarget(itemById(id), _draft)}',
-            ].join('\n'),
-          ),
-        ],
-      ],
+      ),
+      const SizedBox(height: 12),
+      _TipBox(
+        text: _weightKg == null
+            ? '💡 蛋白質和飲水的目標是「每公斤體重」算的：例如 60 kg，蛋白質一天 72 g、白開水一天 1800 ml。填體重就幫你算好。'
+            : [
+                for (final id in ['protein', 'water'])
+                  '${_nourish.contains(id) ? '🎯' : '　'} ${itemTarget(itemById(id), _draft)}'
+                      '${_nourish.contains(id) ? '' : '（沒選）'}',
+              ].join('\n'),
+      ),
     ];
   }
 
   List<Widget> _learn() => [
-    const GuideBubble(text: 'LEARN 很簡單：每天至少 20 分鐘閱讀，聽有聲書也算！'),
+    const GuideBubble(text: 'LEARN 很簡單：每天至少 20 分鐘閱讀，聽有聲書也算！先決定要讀哪一本吧。'),
     const SizedBox(height: 20),
     _RuleCard(item: itemById('reading')),
+    const SizedBox(height: 16),
+    TextField(
+      controller: _book,
+      textInputAction: TextInputAction.done,
+      decoration: const InputDecoration(labelText: '我要讀的書（之後可以換）', hintText: '例如：薛西弗斯的神話'),
+    ),
     const SizedBox(height: 16),
     const _TipBox(text: '💡 把書放在床頭，睡前讀 20 分鐘，還能順便幫助放鬆入睡。'),
   ];
@@ -435,64 +531,103 @@ class _SetupTutorialState extends State<SetupTutorial> {
     ];
   }
 
-  List<Widget> _reflect() => [
-    const GuideBubble(text: '最後是 REFLECT。每天按首頁的「每日打卡」，把今天做到的項目一顆一顆按下去，再寫下一件「今天我注意到的事」。'),
-    const SizedBox(height: 20),
-    PixelBox(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  /// REFLECT：照 Jimmy 的定義，每天一句心得、每週三題。教學裡先練習寫一句。
+  List<Widget> _reflect() {
+    final review = itemById('review');
+    return [
+      const GuideBubble(text: 'REFLECT 分每日和每週。每天打完卡寫一句就好，沒做到的也寫；每週日回答三個問題。先練習寫一句！'),
+      const SizedBox(height: 20),
+      const SectionTitle(tag: 'DAILY', title: '今天我注意到的事'),
+      const SizedBox(height: 10),
+      TextField(
+        controller: _noticed,
+        minLines: 2,
+        maxLines: 4,
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(hintText: '一句話就好，例如：午餐後散步，下午比較有精神'),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Row(
-            children: [
-              const PixelTag('DAY 1'),
-              const SizedBox(width: 8),
-              Text(formatDate(_challenge.start), style: const TextStyle(fontWeight: FontWeight.w800)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Row(
-            children: [
-              Expanded(
-                child: _MockKey(emoji: '🏃', title: '有氧', on: true, color: Color(0xFFF29F05)),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: _MockKey(emoji: '📖', title: '閱讀', on: true, color: Color(0xFF3A86FF)),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: _MockKey(emoji: '🛏️', title: '睡眠', on: false, color: Color(0xFF8B5CF6)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: PixelColors.ink, width: 2),
+          for (final example in _noticedExamples)
+            _ExampleChip(
+              text: example,
+              selected: _noticed.text.trim() == example,
+              onTap: () => setState(() => _noticed.text = example),
             ),
-            child: const Text(
-              '✏️ 今天我注意到的事：\n午餐後散步，下午比較有精神',
-              style: TextStyle(fontSize: 13, height: 1.5, fontWeight: FontWeight.w600),
-            ),
-          ),
         ],
       ),
+      const SizedBox(height: 22),
+      SectionTitle(tag: 'WEEKLY', title: '每週回顧 ${review.emoji}'),
+      const SizedBox(height: 6),
+      const Text('每週日花 10 分鐘回答三題，第三題就是下週的計畫。只有自己看得到。', style: TextStyle(fontSize: 12, color: PixelColors.muted)),
+      const SizedBox(height: 10),
+      PixelBox(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (i, prompt) in review.prompts.indexed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text('${i + 1}. $prompt', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  /// MY WEEK 1 PLAN（Mindy 的 Setup 表）＋每週照片的介紹。
+  List<Widget> _plan() => [
+    const GuideBubble(text: '開跑前先排好第一週：Move 打算怎麼做？最可能卡住你的是什麼？先想好，開始之後就不用每天重新決定。'),
+    const SizedBox(height: 20),
+    const SectionTitle(tag: 'WEEK 1', title: '我的第一週計畫'),
+    const SizedBox(height: 12),
+    TextField(
+      controller: _week1Move,
+      minLines: 2,
+      maxLines: 5,
+      decoration: const InputDecoration(
+        labelText: '本週要做哪些有氧＆肌力項目',
+        hintText: '例如：一三五晨跑 40 分鐘、二四做肌力',
+        alignLabelWithHint: true,
+      ),
     ),
-    const SizedBox(height: 16),
-    const _TipBox(text: '📆 每週末再花 10 分鐘：\n・回答 3 個回顧問題\n・排好下週計畫（尤其是 Move）\n・留下一張代表這週的照片'),
+    const SizedBox(height: 14),
+    TextField(
+      controller: _week1Obstacle,
+      minLines: 2,
+      maxLines: 4,
+      decoration: const InputDecoration(
+        labelText: '這週最可能遇到的阻礙',
+        hintText: '例如：週三要加班，可能沒時間讀書',
+        alignLabelWithHint: true,
+      ),
+    ),
+    const SizedBox(height: 22),
+    const SectionTitle(tag: 'PHOTO', title: '📷 每週一張照片'),
+    const SizedBox(height: 6),
+    const Text(
+      '每週在「本週任務」留一張代表這週生活的照片，不用證明什麼：常去的地方、一頓飯、床邊的書都可以。走完挑戰，照片牆就是這幾週的縮影。',
+      style: TextStyle(fontSize: 13, height: 1.5, fontWeight: FontWeight.w600, color: PixelColors.muted),
+    ),
+    const SizedBox(height: 12),
+    const _PhotoPreview(),
   ];
 
   List<Widget> _ready() {
     final draft = _draft;
     final items = activeItems(draft);
     final chosen = [for (final id in draft.nourishChoice) itemById(id).title];
+    final challenge = _challenge;
+    final notStarted = challenge.phaseOn(_store.today) == ChallengePhase.notStarted;
     return [
       GuideBubble(
-        text: _store.phase == ChallengePhase.notStarted
-            ? '設定完成！這是你的專屬儀表板，每一項挑戰都有自己的能量槽。${formatShortDate(_challenge.start)} 開跑，一起加油！'
+        text: notStarted
+            ? '設定完成！這是你的專屬儀表板，每一項挑戰都有自己的能量槽。${formatShortDate(challenge.start)} 開跑，一起加油！'
             : '設定完成！這是你的專屬儀表板，每一項挑戰都有自己的能量槽。現在就去打卡吧！',
       ),
       const SizedBox(height: 20),
@@ -508,14 +643,11 @@ class _SetupTutorialState extends State<SetupTutorial> {
                 children: [
                   Text(draft.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 4),
-                  Text(
-                    'Nourish：0 酒精、${chosen.join('、')}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
-                  ),
-                  Text(
-                    '作息：${formatClock(draft.bedtime!)} 睡、${formatClock(draft.wakeTime!)} 起',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
-                  ),
+                  _summaryLine('開跑：${formatDate(challenge.start)} → ${formatShortDate(challenge.end)}，${challenge.totalDays} 天'),
+                  _summaryLine('Nourish：0 酒精、${chosen.join('、')}'),
+                  _summaryLine('作息：${formatClock(draft.bedtime!)} 睡、${formatClock(draft.wakeTime!)} 起'),
+                  if (draft.book.trim().isNotEmpty) _summaryLine('讀：${draft.book.trim()}'),
+                  if (draft.week1Move.trim().isNotEmpty) _summaryLine('Week 1：${draft.week1Move.trim()}'),
                 ],
               ),
             ),
@@ -557,9 +689,25 @@ class _SetupTutorialState extends State<SetupTutorial> {
       ),
     ];
   }
+
+  Widget _summaryLine(String text) => Text(
+    text,
+    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: PixelColors.muted),
+  );
 }
 
-const _stepLabels = ['歡迎', '建立角色', 'MOVE 運動', 'NOURISH 營養', 'LEARN 學習', 'RECOVER 恢復', 'REFLECT 反思', '完成！'];
+const _stepLabels = [
+  '歡迎',
+  '建立角色',
+  '決定加入',
+  'MOVE 運動',
+  'NOURISH 營養',
+  'LEARN 學習',
+  'RECOVER 恢復',
+  'REFLECT 反思',
+  'WEEK 1 計畫',
+  '完成！',
+];
 
 /// 寬螢幕左邊的步驟清單：做完的打勾、現在這步加粗框。
 class _StepSidebar extends StatelessWidget {
@@ -700,7 +848,7 @@ class _RuleCard extends StatelessWidget {
   }
 }
 
-/// Nourish 3 選 2 的選項，用鍵帽：選了就按下去亮起來。
+/// Nourish 三選至少二的選項，用鍵帽：選了就按下去亮起來。
 class _OptionKey extends StatelessWidget {
   const _OptionKey({required this.item, required this.selected, required this.onTap});
 
@@ -771,32 +919,184 @@ class _TimeKey extends StatelessWidget {
   }
 }
 
-class _MockKey extends StatelessWidget {
-  const _MockKey({required this.emoji, required this.title, required this.on, required this.color});
+/// 像素風的時間選擇：用鍵帽加減小時和分鐘，不是鬧鐘。
+class _PixelTimeSheet extends StatefulWidget {
+  const _PixelTimeSheet({required this.title, required this.minutes});
+
+  final String title;
+  final int minutes;
+
+  @override
+  State<_PixelTimeSheet> createState() => _PixelTimeSheetState();
+}
+
+class _PixelTimeSheetState extends State<_PixelTimeSheet> {
+  late int _minutes = widget.minutes;
+
+  void _add(int delta) => setState(() => _minutes = (_minutes + delta + 24 * 60) % (24 * 60));
+
+  Widget _key(String label, VoidCallback onTap) => SizedBox(
+    width: 64,
+    height: 56,
+    child: Keycap(
+      onTap: onTap,
+      child: Center(child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 16),
+          Center(child: PixelText(formatClock(_minutes), dot: 7)),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _key('−1 時', () => _add(-60)),
+              const SizedBox(width: 8),
+              _key('+1 時', () => _add(60)),
+              const SizedBox(width: 20),
+              _key('−15 分', () => _add(-15)),
+              const SizedBox(width: 8),
+              _key('+15 分', () => _add(15)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 58,
+            child: Keycap(
+              faceColor: PixelColors.yellow,
+              onTap: () => Navigator.of(context).pop(_minutes),
+              child: const Center(child: Text('好了', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 教學裡的示範鍵帽：真的可以按，按一下亮、再按一下暗。
+class _MockKey extends StatefulWidget {
+  const _MockKey({required this.emoji, required this.title, required this.color});
 
   final String emoji;
   final String title;
-  final bool on;
   final Color color;
+
+  @override
+  State<_MockKey> createState() => _MockKeyState();
+}
+
+class _MockKeyState extends State<_MockKey> {
+  bool _on = false;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 76,
+      height: 92,
       child: Keycap(
-        on: on,
-        color: color,
-        onTap: () {},
+        on: _on,
+        color: widget.color,
+        onTap: () => setState(() => _on = !_on),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
+            Text(widget.emoji, style: const TextStyle(fontSize: 20)),
             Text(
-              title,
-              style: TextStyle(fontWeight: FontWeight.w900, color: on ? onColor(color) : PixelColors.ink),
+              '${_on ? '✓' : ''}${widget.title}',
+              style: TextStyle(fontWeight: FontWeight.w900, color: _on ? onColor(widget.color) : PixelColors.ink),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 教學裡的照片示意：一個空的像素相框＋相簿／拍照兩顆鍵帽（按了只是示範）。
+class _PhotoPreview extends StatelessWidget {
+  const _PhotoPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AspectRatio(
+          aspectRatio: 16 / 7,
+          child: Container(
+            decoration: const ShapeDecoration(color: PixelColors.sand, shape: PixelBorder()),
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PixelText('WEEK 1', dot: 3, color: PixelColors.muted),
+                  SizedBox(height: 6),
+                  Text('這週的一張照片會放在這裡', style: TextStyle(fontWeight: FontWeight.w800, color: PixelColors.muted)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: Keycap(
+                  onTap: () {},
+                  child: const Center(
+                    child: Text('🖼️ 從相簿選', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: Keycap(
+                  onTap: () {},
+                  child: const Center(
+                    child: Text('📸 拍一張', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ExampleChip extends StatelessWidget {
+  const _ExampleChip({required this.text, required this.selected, required this.onTap});
+
+  final String text;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? PixelColors.yellow : PixelColors.paper,
+          border: Border.all(color: PixelColors.ink, width: 2),
+        ),
+        child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
       ),
     );
   }

@@ -10,23 +10,15 @@ import '../models/profile.dart';
 import '../models/progress.dart';
 import '../models/rules.dart';
 import 'demo_data.dart';
+import 'photo_store.dart';
 
 /// Demo 用的資料層：自己的資料存在手機本機，隊友是示範資料。
 class ChallengeStore extends ChangeNotifier {
-  ChallengeStore._(this._prefs, this.challenge, this._clock);
+  ChallengeStore._(this._prefs, this._clock);
 
-  /// [demoDay]：挑戰還沒開始時，Demo 預設假裝已經進行到第幾天（null 就用真正的日期）。
-  static Future<ChallengeStore> load({
-    Challenge? challenge,
-    DateTime Function()? clock,
-    int? demoDay = 30,
-  }) async {
-    final store = ChallengeStore._(
-      await SharedPreferences.getInstance(),
-      challenge ?? defaultChallenge,
-      clock ?? DateTime.now,
-    );
-    store._restore(demoDay);
+  static Future<ChallengeStore> load({DateTime Function()? clock}) async {
+    final store = ChallengeStore._(await SharedPreferences.getInstance(), clock ?? DateTime.now);
+    store._restore();
     return store;
   }
 
@@ -40,7 +32,6 @@ class ChallengeStore extends ChangeNotifier {
   static const _realToday = 'today';
 
   final SharedPreferences _prefs;
-  final Challenge challenge;
   final DateTime Function() _clock;
 
   bool _setupDone = false;
@@ -53,10 +44,14 @@ class ChallengeStore extends ChangeNotifier {
 
   List<Player>? _teammates;
   DateTime? _teammatesDay;
+  DateTime? _teammatesStart;
 
   /// 教學（Setup）走完了沒。
   bool get isSetUp => _setupDone;
   Profile get profile => _profile;
+
+  /// 這個人的挑戰：從開跑日（開始用 App 那天）到 12/31。還沒設定時用主辦的 10/9。
+  Challenge get challenge => challengeStarting(_profile.startDate ?? officialStart);
 
   /// Demo 用：把「今天」換成其他日期，方便看挑戰中、結束後的畫面。
   DateTime? get previewDate => _previewDate;
@@ -65,8 +60,11 @@ class ChallengeStore extends ChangeNotifier {
   ChallengePhase get phase => challenge.phaseOn(today);
   int get weekNumber => challenge.weekNumber(challenge.clamp(today));
 
-  /// Nourish 的 3 選 2 在挑戰開始後就鎖定。
-  bool get nourishLocked => phase != ChallengePhase.notStarted && _profile.nourishReady;
+  /// Nourish 的三選至少二：擁有者決定不鎖定（2026-10-10），隨時可以在「重新設定」改。
+  bool get nourishLocked => false;
+
+  /// 開跑日過了（或就是今天）就不能再改。
+  bool get startLocked => _profile.startDate != null && !today.isBefore(_profile.startDate!);
 
   Player get me => Player(id: 'me', profile: _profile, log: _log, isMe: true);
 
@@ -93,18 +91,23 @@ class ChallengeStore extends ChangeNotifier {
     _profile = Profile(
       name: profile.name.trim().isEmpty ? Profile.defaultName : profile.name.trim(),
       avatar: profile.avatar,
+      startDate: startLocked ? _profile.startDate : (profile.startDate ?? today),
       weightKg: profile.weightKg,
       nourishChoice: nourishLocked ? _profile.nourishChoice : profile.nourishChoice,
       bedtime: profile.bedtime,
       wakeTime: profile.wakeTime,
+      book: profile.book.trim(),
+      week1Move: profile.week1Move.trim(),
+      week1Obstacle: profile.week1Obstacle.trim(),
     );
     _setupDone = true;
+    _teammates = null;
     notifyListeners();
     await _prefs.setString(_profileKey, jsonEncode(_profile.toJson()));
     await _prefs.setBool(_setupKey, true);
   }
 
-  /// 打勾的項目（每天的、每週照片）：切換 [date] 那一期。
+  /// 打勾的項目（每天的）：切換 [date] 那一期。
   Future<void> toggle(ChallengeItem item, DateTime date) async {
     if (!canLogOn(date)) return;
     final done = _log.entryOn(item, date).isDone;
@@ -130,13 +133,29 @@ class ChallengeStore extends ChangeNotifier {
     }
   }
 
-  /// 寫字的項目：今天注意到的事、每週回顧、下週計畫。
+  /// 寫字的項目：今天注意到的事、每週回顧。
   Future<void> saveNotes(ChallengeItem item, DateTime date, List<String> notes) async {
     if (!canLogOn(date)) return;
     final trimmed = [for (final note in notes) note.trim()];
     if (listEquals(trimmed, _log.entryOn(item, date).notes)) return;
     _log.set(item, date, Entry(amount: trimmed.where((note) => note.isNotEmpty).length, notes: trimmed));
     await _saveLog();
+  }
+
+  /// 每週照片：[ref] 是 [PhotoStore] 給的檔案路徑或 data URL；傳 null 就是拿掉。
+  Future<void> setPhoto(DateTime date, String? ref) async {
+    final photo = itemById('photo');
+    if (!canLogOn(date)) return;
+    final old = _log.entryOn(photo, date).notes.firstOrNull;
+    _log.set(photo, date, ref == null ? Entry.empty : Entry(amount: 1, notes: [ref]));
+    await _saveLog();
+    if (old != null && old != ref) await PhotoStore.delete(old);
+  }
+
+  /// 某一週的照片參照（沒有就 null）。
+  String? photoOn(DateTime date) {
+    final entry = _log.entryOn(itemById('photo'), date);
+    return entry.isDone ? entry.notes.firstOrNull : null;
   }
 
   String _cheerKey(String playerId) => '${dateKey(today)}|$playerId';
@@ -171,6 +190,7 @@ class ChallengeStore extends ChangeNotifier {
     _profile = const Profile();
     _log = ActivityLog();
     _myCheers.clear();
+    _teammates = null;
     notifyListeners();
     await _prefs.remove(_setupKey);
     await _prefs.remove(_profileKey);
@@ -182,14 +202,16 @@ class ChallengeStore extends ChangeNotifier {
   Future<void> reload() async {
     await _prefs.reload();
     _myCheers.clear();
-    _restore(null);
+    _restore();
     notifyListeners();
   }
 
   List<Player> _teammatesOn(DateTime day) {
-    if (_teammates == null || _teammatesDay != day) {
+    final start = challenge.start;
+    if (_teammates == null || _teammatesDay != day || _teammatesStart != start) {
       _teammates = buildDemoPlayers(challenge, day);
       _teammatesDay = day;
+      _teammatesStart = start;
     }
     return _teammates!;
   }
@@ -199,7 +221,7 @@ class ChallengeStore extends ChangeNotifier {
     await _prefs.setString(_logKey, jsonEncode(_log.toJson()));
   }
 
-  void _restore(int? demoDay) {
+  void _restore() {
     try {
       _setupDone = _prefs.getBool(_setupKey) ?? false;
       final profile = _prefs.getString(_profileKey);
@@ -209,13 +231,7 @@ class ChallengeStore extends ChangeNotifier {
       _myCheers.addAll(_prefs.getStringList(_cheersKey) ?? const []);
 
       final preview = _prefs.getString(_previewDateKey);
-      if (preview == null) {
-        // Demo：挑戰還沒開始的話什麼都不能打卡，所以預設假裝已經進行到第 [demoDay] 天。
-        final notStarted = challenge.phaseOn(dateOnly(_clock())) == ChallengePhase.notStarted;
-        if (demoDay != null && notStarted) _previewDate = challenge.dateOfDay(demoDay);
-      } else if (preview != _realToday) {
-        _previewDate = parseDateKey(preview);
-      }
+      if (preview != null && preview != _realToday) _previewDate = parseDateKey(preview);
     } on FormatException {
       // 本機資料壞掉時就從頭開始，不要讓 App 打不開。
     }

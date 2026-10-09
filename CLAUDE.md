@@ -4,12 +4,11 @@
 
 ## 專案
 
-**Omi～快樂的 Σίσυφος**：Discord 社群「Omi 新計劃」的 100 天好習慣挑戰 App（2026-10-09 → 2027-01-16），規則見 README。Flutter 跨 Android／iOS／Web。
+**Omi～快樂的 Σίσυφος**：Discord 社群「Omi 新計劃」的 The Omi Challenge 追蹤 App（主辦第一輪 2026-10-09 → 2026-12-31，84 天；App 裡每個人從開始用的那天算 Day 1，結束固定 12/31）。規則來源是 Mindy 的 Notion Wiki，需求整理在 `docs/PRD.md`，一頁摘要 `docs/SUMMARY.md`。Flutter 跨 Android／iOS／Web。
 
 **目前是 Demo／測試階段**：
 - 資料只存在本機（`shared_preferences`），隊友是 `lib/data/demo_data.dart` 的示範資料。
-- 挑戰還沒開始時，預設假裝已經進行到第 30 天（`ChallengeStore.load(demoDay: 30)`）。
-- 挑戰日期寫死在 `lib/models/challenge.dart`。
+- 🧪 選單可以「換一天看看」（previewDate）；開跑日存在 Profile，結束日 `challengeEnd` 寫死在 `lib/models/challenge.dart`。
 - 擁有者說過「先用 Demo 討論需求，完成後再討論架構」：**不要自己加後端或改架構**，等擁有者決定。
 - 正式上架 App Store 前要拿掉 Demo 內容（審查指南 2.2），清單在 `docs/release/app-store-listing.md`。
 
@@ -31,15 +30,15 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 
 ## 程式結構
 
-- `lib/models/`：`Challenge`（日期、第幾天、週次）、`rules.dart`（The Rules 的項目定義）、進度、打卡紀錄、個人設定。
-- `lib/data/challenge_store.dart`：唯一的資料來源（`ChangeNotifier`），讀寫本機、計算進度。
+- `lib/models/`：`Challenge`（日期、第幾天、週次；`challengeStarting(start)`）、`rules.dart`（The Rules 的項目定義）、進度、打卡紀錄、個人設定（開跑日、三選至少二、體重、作息、要讀的書、Week 1 計畫；體重不鎖定）。
+- `lib/data/challenge_store.dart`：唯一的資料來源（`ChangeNotifier`），讀寫本機、計算進度。`photo_store.dart`：每週照片存檔（手機存檔案、網頁存 data URL）。
 - `lib/data/home_widget_bridge.dart`：Android 桌面小工具（`android/.../CheerWidgetProvider.kt`）的資料同步；iOS 對應 `ios/CheerWidget/`（WidgetKit）與 `ios/Runner/ToggleIntent.swift`（鍵帽 AppIntent，經 home_widget 在背景執行同一個 Dart `homeWidgetInteraction`）。iOS 小工具資料放 App Group `group.com.jacklope.omiApp`。
-- `lib/screens/`：`title_screen` → `setup_tutorial`（一步步教學）→ `home_screen`（HUD → 能量槽 → 每日打卡 → 隊友）→ `daily_record_screen`（鍵帽打卡＋Reflect）。
+- `lib/screens/`：`title_screen` → `setup_tutorial`（照 Mindy 的 Setup 表，10 步）→ `home_screen`（HUD → 能量槽 → 每日打卡 → 本週任務 → 隊友）→ `daily_record_screen`（鍵帽打卡＋每日心得）、`weekly_screen`（回顧三題＋照片）、`photo_wall_screen`、`widget_preview_screen`（iOS 小工具 Demo）。
 - `lib/widgets/`：像素 UI（`pixel_ui.dart` 的 `PixelColors`、邊框、陰影）、`keycap.dart`、`energy_tile.dart`、`pixel_text.dart`（自繪 5×7 字型）、`responsive.dart`（寬螢幕版面）。
 
 ## 設計語言（擁有者喜歡，維持一致）
 
-像素風：黑色缺角邊框、硬陰影、分段能量條、自繪 5×7 字型、黃色 PixelTag 標籤、配色沿用 `PixelColors`（參考 leftsideescalator.com）。打卡就是按機械鍵盤鍵帽。新畫面先用既有元件，不要引入其他風格。
+像素風：黑色缺角邊框、硬陰影、分段能量條、自繪 5×7 字型、黃色 PixelTag 標籤、配色沿用 `PixelColors`（參考 leftsideescalator.com）。打卡就是按機械鍵盤鍵帽（`keycap.dart`，要有按鈕感：浮起有陰影、按下會沉、有震動）。新畫面先用既有元件，不要引入其他風格。**文案語氣風格擁有者喜歡，不要重寫**，只改規則對不上的數字與定義。擁有者的決定都記在 `docs/PRD.md` 第 10 節（例如：不做「沒做到」狀態、保留連續天數但放不顯眼處、心得不給隊友看）。
 
 ## 發布（細節：`docs/release/ios-release.md`）
 

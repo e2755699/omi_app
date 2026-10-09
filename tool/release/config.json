@@ -6,7 +6,7 @@
   "beta_group": "Omi Internal",
   "external_group": "Omi 夥伴",
   "beta_locale": "zh-Hant",
-  "what_to_test": "這是 Demo 版：隊友是示範資料，你的紀錄只存在這台手機。\n請試試：跟著教學完成設定 → 首頁看各項能量槽 → 每日打卡按鍵帽、寫下今天的 Reflect → 幫隊友集氣加油或慶祝。\n有任何想法或卡住的地方，請在 TestFlight 裡截圖回饋。",
+  "what_to_test": "這是 Demo 版：隊友是示範資料，你的紀錄和照片只存在這台手機。\n請試試：跟著教學完成設定（選開跑日、三選至少二、作息、Week 1 計畫）→ 首頁看各項能量槽與「達成幾天」→ 每日打卡按鍵帽、寫一句今天注意到的事 → 本週任務寫回顧三題、留一張照片 → 幫隊友集氣加油或慶祝。\n有任何想法或卡住的地方，請在 TestFlight 裡截圖回饋。",
   "github_repo": "e2755699/omi_app",
   "codemagic_app_id": "6ac3e6dec18dba32d6229cd5",
   "shorebird_app_name": "Omi"

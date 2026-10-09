@@ -1,21 +1,34 @@
+import 'challenge.dart';
+
 /// 個人設定：在教學（Setup）裡填，用來產生自己的儀表板。
 class Profile {
   const Profile({
     this.name = defaultName,
     this.avatar = '😀',
+    this.startDate,
     this.weightKg,
     this.nourishChoice = const {},
     this.bedtime,
     this.wakeTime,
+    this.book = '',
+    this.week1Move = '',
+    this.week1Obstacle = '',
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
         name: json['name'] as String? ?? defaultName,
         avatar: json['avatar'] as String? ?? '😀',
+        startDate: switch (json['start']) {
+          final String key => parseDateKey(key),
+          _ => null,
+        },
         weightKg: (json['weightKg'] as num?)?.toDouble(),
         nourishChoice: {...?(json['nourish'] as List<dynamic>?)?.cast<String>()},
         bedtime: json['bedtime'] as int?,
         wakeTime: json['wakeTime'] as int?,
+        book: json['book'] as String? ?? '',
+        week1Move: json['week1Move'] as String? ?? '',
+        week1Obstacle: json['week1Obstacle'] as String? ?? '',
       );
 
   static const defaultName = '我';
@@ -23,17 +36,27 @@ class Profile {
   final String name;
   final String avatar;
 
-  /// 用來算蛋白質（1.2 g/kg）和飲水（30 ml/kg）的目標。
+  /// 開跑日（Day 1）：開始用 App 的那天，或教學裡選的「下週一」。結束日固定 12/31。
+  final DateTime? startDate;
+
+  /// 用來算蛋白質（1.2 g/kg）和飲水（30 ml/kg）的目標。隨時可以改，目標跟著變（擁有者決定不鎖定）。
   final double? weightKg;
 
-  /// Nourish 3 選 2 選了哪兩項（項目 id）。挑戰開始後不能再改。
+  /// Nourish 三選至少二選了哪幾項（項目 id）。挑戰開始後不能再改。
   final Set<String> nourishChoice;
 
   /// 固定的就寢、起床時間（從午夜起算的分鐘數）。
   final int? bedtime;
   final int? wakeTime;
 
-  bool get nourishReady => nourishChoice.length == 2;
+  /// Learn：我要讀的書。
+  final String book;
+
+  /// Week 1 計畫（Mindy 的 Setup 表）：本週要做哪些有氧＆肌力、最可能遇到的阻礙。
+  final String week1Move;
+  final String week1Obstacle;
+
+  bool get nourishReady => nourishChoice.length >= 2;
   bool get scheduleReady => bedtime != null && wakeTime != null;
 
   /// 睡眠機會：就寢到起床有幾分鐘。
@@ -42,10 +65,14 @@ class Profile {
   Map<String, Object?> toJson() => {
         'name': name,
         'avatar': avatar,
+        if (startDate != null) 'start': dateKey(startDate!),
         'weightKg': weightKg,
         'nourish': nourishChoice.toList(),
         'bedtime': bedtime,
         'wakeTime': wakeTime,
+        'book': book,
+        'week1Move': week1Move,
+        'week1Obstacle': week1Obstacle,
       };
 }
 

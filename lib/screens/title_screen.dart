@@ -8,11 +8,12 @@ import '../widgets/responsive.dart';
 import '../widgets/section_title.dart';
 import '../widgets/sisyphus_scene.dart';
 
-const _story = '希臘神話裡的薛西弗斯（Σίσυφος），每天把一顆大石頭推上山頂；'
+String _story(int days) =>
+    '希臘神話裡的薛西弗斯（Σίσυφος），每天把一顆大石頭推上山頂；'
     '石頭滾下來，隔天再推一次。\n'
     '卡繆說：「我們必須想像薛西弗斯是快樂的。」\n'
     '好習慣也是這樣——沒有一次就攻頂這種事，只有每天，再推一次。\n'
-    'Omi 陪你把接下來 100 天的每一次推石頭，變成看得見的能量、聽得到的加油。';
+    'Omi 陪你把接下來 $days 天的每一次推石頭，變成看得見的能量、聽得到的加油。';
 
 const _purposes = [
   ('🪨', '每天推一點', '把 The Rules 拆成一顆顆鍵帽，按下去就是今天的一小步'),
@@ -127,14 +128,14 @@ class TitleScreen extends StatelessWidget {
   }
 
   List<Widget> _storyAndPurposes() => [
-        const PixelBox(
-          padding: EdgeInsets.all(16),
+        PixelBox(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              PixelTag('STORY'),
-              SizedBox(height: 10),
-              Text(_story, style: TextStyle(fontSize: 15, height: 1.7, fontWeight: FontWeight.w700)),
+              const PixelTag('STORY'),
+              const SizedBox(height: 10),
+              Text(_story(challenge.totalDays), style: const TextStyle(fontSize: 15, height: 1.7, fontWeight: FontWeight.w700)),
             ],
           ),
         ),
