@@ -1,6 +1,6 @@
 # iOS 發布（Codemagic → TestFlight 內測＋外部測試）
 
-> 狀態（2026-10-06）：**第一次真實發布 1.0.0 (1) 已內測可用，外部測試已送 Beta 審查**（等 Apple 結果）。Codemagic → GitHub 的自動觸發因 token 無效失敗，該次改用 `gh` 手動補查；換好 token 後再驗一次。細節見「驗收矩陣」。
+> 狀態（2026-10-10）：**1.1.0 (3) 已內測可用、外部測試已送 Beta 審查**（含 iOS 桌面小工具）。這次是第一次「推 tag → Codemagic → GitHub Actions 查驗 → issue 留言」全程自動成功；webhook 已由擁有者建立。1.0.0 (2) 的外部測試已通過。細節見「驗收矩陣」。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
 ## 怎麼發布
@@ -119,7 +119,7 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | Codemagic 變數群組、GitHub Actions secrets | ✅ 2026-10-06 由 `setup_secrets.py` 寫入 |
 | `GITHUB_DISPATCH_TOKEN` | ✅ 2026-10-06 Regenerate 後由新版 `setup_secrets.py` 驗證寫入；build #2 自動觸發查驗成功 |
 | Shorebird（帳號、API key、App、`shorebird.yaml`） | ✅ 2026-10-06：App「Omi」、基底版 1.0.0+2 已登記；`SHOREBIRD_TOKEN` 在 Codemagic 群組 `shorebird` |
-| GitHub → Codemagic webhook（推 tag 自動觸發） | ⚠️ 還沒建立：Codemagic 顯示「No deliveries」，推 `v1.0.0` 沒觸發，改手動 Start build。待擁有者同意後按 Codemagic → Webhooks →「Update webhook」 |
+| GitHub → Codemagic webhook（推 tag 自動觸發） | ✅ 2026-10-10 擁有者用 `gh api` 建立（repo hook，push 事件，URL `https://api.codemagic.io/hooks/<codemagic_app_id>`）。推 `v1.1.0` 後 Codemagic 回 202「Webhook received」並自動建置。Claude 不能自己建 repo webhook（安全分類器會擋） |
 
 ## 排錯與重試
 
@@ -159,7 +159,8 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | --- | --- | --- |
 | 正常發布：建置 → 上傳 → 內測可用 → 通知 | **真實雲端實跑通過、Apple API 確認、通知已送出**（手動 Codemagic build；收件待擁有者確認） | Codemagic build #1（[連結](https://codemagic.io/app/6ac3e6dec18dba32d6229cd5/build/6ac4425b7394575b200b76db)，`ba5abb1`）→ 1.0.0 (1)，Apple build `a2b7493a-23bc-4963-b96e-e932e5278924`：`VALID`、`IN_BETA_TESTING`、在「Omi Internal」（[Actions run 37395758576](https://github.com/e2755699/omi_app/actions/runs/37395758576)，2026-10-06 00:52 UTC）→ issue #1 留言 |
 | Codemagic → GitHub 自動觸發查驗 | **真實實跑通過**（build #2）；build #1 曾因 token 無效 401，已修 | [Actions run 37401643955](https://github.com/e2755699/omi_app/actions/runs/37401643955) |
-| tag 觸發（`git push origin v1.0.0`） | **實跑失敗**：GitHub → Codemagic 沒有 webhook，推 tag 沒觸發；手動對 tag 啟動 build #2 | Codemagic Webhooks 頁「No deliveries yet」 |
+| tag 觸發（`git push origin v1.0.0`） | 當時失敗（沒有 webhook，手動啟動 build #2）；**2026-10-10 `v1.1.0` 推 tag 自動觸發成功** | GitHub hook deliveries 202；Codemagic build `6ac916812e8bb15cf3a4f7c3` |
+| 完整自動流程：tag → Codemagic → Actions 查驗 → issue 留言（1.1.0 (3)，含 CheerWidget 雙 target 簽章） | **真實實跑通過**：內測 `IN_BETA_TESTING`、已送外部 Beta 審查 | [Actions run 37969703612](https://github.com/e2755699/omi_app/actions/runs/37969703612)，issue #1 留言 2026-10-09T17:58Z，Apple build `ca97e685-6285-4d91-8ffe-1fa86b47e5e8` |
 | 自動 provisioning（乾淨 runner，經 API 建立憑證＋profile） | **真實雲端實跑通過** | build #1 簽章步驟 3 秒成功；Apple Developer 出現新的 Distribution 憑證（API 建立，2027/10/06 到期，目前 3/3） |
 | 預檢、品質檢查（analyze／test／發布工具測試） | **真實雲端實跑通過** | build #1：預檢 6 秒、品質檢查 46 秒 |
 | 外部測試：What to Test、加群組、送審（不重送） | **真實實跑：已送審**（`WAITING_FOR_BETA_REVIEW`）；審查結果待 Apple | 同上 Actions run 的 `external` 欄位；模擬：`ExternalTest.*` |
@@ -179,7 +180,7 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | Shorebird patch → 通知 | 已配置；patch 輸出擷取與通知文字模擬通過，**未實跑** | `test_patch_*`、本機模擬 patch log |
 | build 取消／逾時 | **不支援** | — |
 
-待補：擁有者確認收到通知信；換好 token 後一次 tag 觸發的完整自動流程；Beta 審查結果與外部通知。
+待補：擁有者確認收到通知信；1.1.0 的 Beta 審查結果與外部通知；真機上小工具與選照片的驗收。
 
 ## iOS 桌面小工具（CheerWidget）
 
