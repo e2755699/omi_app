@@ -178,3 +178,53 @@ class _KeycapBody extends StatelessWidget {
     );
   }
 }
+
+/// 全寬的文字鍵帽（上一步／下一步、完成打卡、從相簿選…）：統一高度、字級與鍵帽厚度，
+/// 各畫面不要再各自手刻 SizedBox + Keycap + Center + Text。
+/// 小顆的方形鍵（+10、+20…）和排版自訂的鍵帽仍直接用 [Keycap]。
+class KeycapButton extends StatelessWidget {
+  const KeycapButton({
+    super.key,
+    this.label,
+    this.child,
+    required this.onTap,
+    this.primary = false,
+    this.height = 58,
+    this.fontSize = 16,
+  }) : assert((label == null) != (child == null), 'Pass either label or child');
+
+  final String? label;
+
+  /// 版面自訂的內容（例如文字加像素箭頭），和 [label] 二選一。
+  final Widget? child;
+  final VoidCallback? onTap;
+
+  /// 主要動作，頂面用黃色。
+  final bool primary;
+  final double height;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Keycap(
+        onTap: onTap,
+        thickness: 0.7,
+        faceColor: primary ? PixelColors.yellow : const Color(0xFFFFFBF0),
+        child: Center(
+          child:
+              child ??
+              Text(
+                label!,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w900,
+                  color: onTap == null ? PixelColors.muted : PixelColors.ink,
+                ),
+              ),
+        ),
+      ),
+    );
+  }
+}

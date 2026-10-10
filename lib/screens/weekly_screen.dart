@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -72,6 +73,34 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// 網頁版只能選檔案；手機先問要從相簿選還是拍一張（image_picker 不會自己跳選單）。
+  Future<void> _choosePhoto() async {
+    final source = kIsWeb
+        ? ImageSource.gallery
+        : await showModalBottomSheet<ImageSource>(
+            context: context,
+            useSafeArea: true,
+            builder: (sheet) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  KeycapButton(
+                    label: '🖼️ 從相簿選',
+                    onTap: () => Navigator.of(sheet).pop(ImageSource.gallery),
+                  ),
+                  const SizedBox(height: 12),
+                  KeycapButton(
+                    label: '📸 拍一張',
+                    onTap: () => Navigator.of(sheet).pop(ImageSource.camera),
+                  ),
+                ],
+              ),
+            ),
+          );
+    if (source != null) await _pickPhoto(source);
   }
 
   @override
@@ -149,32 +178,9 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
             const SizedBox(height: 12),
             _PhotoFrame(photo: photo, week: challenge.weekNumber(_date)),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 60,
-                    child: Keycap(
-                      onTap: editable && !_busy ? () => _pickPhoto(ImageSource.gallery) : null,
-                      child: const Center(
-                        child: Text('🖼️ 從相簿選', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 60,
-                    child: Keycap(
-                      onTap: editable && !_busy ? () => _pickPhoto(ImageSource.camera) : null,
-                      child: const Center(
-                        child: Text('📸 拍一張', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            KeycapButton(
+              label: '📷 選照片',
+              onTap: editable && !_busy ? _choosePhoto : null,
             ),
             if (photo != null) ...[
               const SizedBox(height: 8),
@@ -202,19 +208,16 @@ class _WeeklyScreenState extends State<WeeklyScreen> {
               ),
             ),
             const SizedBox(height: 26),
-            SizedBox(
+            KeycapButton(
+              primary: true,
               height: 64,
-              child: Keycap(
-                onTap: () async {
-                  final navigator = Navigator.of(context);
-                  await _save();
-                  navigator.pop();
-                },
-                faceColor: PixelColors.yellow,
-                child: const Center(
-                  child: Text('存好了 ✓', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                ),
-              ),
+              fontSize: 17,
+              label: '存好了 ✓',
+              onTap: () async {
+                final navigator = Navigator.of(context);
+                await _save();
+                navigator.pop();
+              },
             ),
           ];
 
