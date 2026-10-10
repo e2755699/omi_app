@@ -1,6 +1,8 @@
 # App Store 商店資料與送審準備
 
-> 狀態（2026-10-06）：**草稿，尚未填入 App Store Connect，尚未送審**。送審與公開發布由擁有者確認後才做。
+> 1.2.0 更新（2026-10-10）：TestFlight 公開描述、隱私 URL 與審查備註由 `tool/release/config.json` 作為來源，CI 預檢同步至 Apple；聯絡人與信箱保留原設定。隱私頁／manifest 已更新，ASC 正式版資料收集標籤、支援頁、帳號刪除仍待完成。以下舊版商店草稿不可直接用於雲端版送審。
+
+> 舊版狀態（2026-10-06）：**草稿，尚未填入 App Store Connect，尚未送審**。送審與公開發布由擁有者確認後才做。
 > 發布管線見 [ios-release.md](ios-release.md)。
 
 ## 送審前必須先解決（會被退件或無法填寫）
@@ -97,27 +99,7 @@ CI 會在內測可用後自動送外部測試（群組「Omi 夥伴」，開公�
 
 ### TestFlight 測試資訊（App Store Connect → TestFlight → 測試資訊）
 
-**Beta 版 App 描述**（測試者看得到）：
-```
-Omi～快樂的 Σίσυφος 是一個 100 天好習慣挑戰 App：運動、飲食、閱讀、睡眠、反思五個面向，每天按下鍵帽打卡，看能量槽一點一點充滿，也能幫隊友集氣加油。
-
-目前是 Demo 測試版：隊友是示範資料，你的紀錄只存在自己的手機。歡迎試用，並在 TestFlight 裡截圖回饋想法。
-```
-
-**隱私權政策 URL**：`https://e2755699.github.io/omi_app/privacy/`
-
-**審查備註**（給 Apple 審查員；照擁有者要求說明目前是 demo、正式上架前會完整做出來）：
-```
-This build is a demo of our community's 100-day habit challenge app, distributed through TestFlight to collect feedback from participants before we build the full product.
-
-- No login or account is required, and the app works fully offline. All data stays on the device.
-- The teammates shown in the app are built-in sample data; the app labels this clearly as DEMO.
-- Before any public App Store release we will complete the full app, including the backend and architecture that sync real teammates' progress, and update the privacy policy accordingly.
-
-How to test: on first launch, follow the setup tutorial (about 1 minute). Then tap "每日打卡" (Daily check-in) on the home screen and press the keycap buttons to check in.
-
-（中文）這是社群 100 天好習慣挑戰的 Demo 測試版，透過 TestFlight 先收集參與者回饋。不需登入、可離線使用，資料只存在裝置上；App 中的隊友是內建示範資料（App 內標示 DEMO）。正式上架 App Store 前，我們會把 App 完整做出來，包含同步真實隊友進度的後端與架構，並同步更新隱私權政策。
-```
+**Beta 版 App 描述與審查備註**：以 [config.json](../../tool/release/config.json) 的 `beta_description`、`beta_review_notes`、`privacy_policy_url` 為準。CI 使用 Apple 官方 [beta localization PATCH](https://developer.apple.com/documentation/appstoreconnectapi/patch-v1-betaapplocalizations-_id_) 與 [beta review detail PATCH](https://developer.apple.com/documentation/appstoreconnectapi/patch-v1-betaappreviewdetails-_id_) 更新文字，失敗會在打包前停止。
 
 **需要登入**：不勾。
 

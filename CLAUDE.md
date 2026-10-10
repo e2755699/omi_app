@@ -33,7 +33,7 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 - `lib/models/`：`Challenge`（日期、第幾天、週次；`challengeStarting(start)`）、`rules.dart`（The Rules 的項目定義）、進度、打卡紀錄、個人設定（開跑日、三選至少二、體重、作息、要讀的書、Week 1 計畫；體重不鎖定）。
 - `lib/data/challenge_store.dart`：唯一的資料來源（`ChangeNotifier`），讀寫本機、計算進度。`photo_store.dart`：每週照片存檔（手機存檔案、網頁存 data URL）。
 - `lib/data/home_widget_bridge.dart`：Android 桌面小工具（`android/.../CheerWidgetProvider.kt`）的資料同步；iOS 對應 `ios/CheerWidget/`（WidgetKit）與 `ios/Runner/ToggleIntent.swift`（鍵帽 AppIntent，經 home_widget 在背景執行同一個 Dart `homeWidgetInteraction`）。iOS 小工具資料放 App Group `group.com.jacklope.omiApp`。
-- `lib/screens/`：`title_screen` → `setup_tutorial`（照 Mindy 的 Setup 表，10 步）→ `home_screen`（HUD → 能量槽 → 每日打卡 → 本週任務 → 隊友）→ `daily_record_screen`（鍵帽打卡＋每日心得）、`weekly_screen`（回顧三題＋照片）、`photo_wall_screen`、`widget_preview_screen`（iOS 小工具 Demo）。
+- `lib/screens/`：`title_screen` → `setup_tutorial`（照 Mindy 的 Setup 表，11 步）→ `home_screen`（HUD → 能量槽 → 每日打卡 → 本週任務 → 隊友）→ `daily_record_screen`（鍵帽打卡＋每日心得）、`weekly_screen`（回顧三題＋照片）、`photo_wall_screen`、`widget_preview_screen`（iOS 小工具 Demo）。
 - `lib/widgets/`：像素 UI（`pixel_ui.dart` 的 `PixelColors`、邊框、陰影）、`keycap.dart`、`energy_tile.dart`、`pixel_text.dart`（自繪 5×7 字型）、`responsive.dart`（寬螢幕版面）。
 
 ## 設計語言（擁有者喜歡，維持一致）
@@ -58,3 +58,9 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 - **不要合併** worktree／feature branch 到 master（`.claude/settings.json` 已禁止 `git merge`）；回報 branch 與 diff，讓擁有者決定。
 - 改了發布流程、秘密名稱或驗收結果，同一輪更新 `docs/release/`、README 與 `TODO.md`。
 - 想法類需求先記到 `TODO.md`「之後發想」，等擁有者確認再做。
+
+## 2026-10-10 發布交接
+
+- 擁有者已明確授權本輪更新完成／未完成紀錄、PR 合併 master、發布最新 TestFlight。
+- 1.2.0 起 Codemagic release／patch 都帶 `config/supabase.dev.json`；Pages 仍為本機模式。
+- 雲端小工具背景寫入尚未完成，不能宣稱 Android／iOS Widget 的所有互動已同步。完整交接清單見 TODO.md。

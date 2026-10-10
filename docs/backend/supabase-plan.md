@@ -99,7 +99,7 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 - 照片上傳實測通過：擁有者開啟 Chrome 外掛檔案存取後，用 `web/icons/Icon-192.png` 測試。修正 Web 上 `1 << 32` 溢位為 0、造成照片檔名亂數產生失敗；改用數值常數 `0x100000000`。App 上傳成功，伺服器確認 `weekly_photos` version 1、週期 `2026-10-05`，且私人 Storage 對應檔案存在（image/png，3,724 bytes）。重新載入 App 顯示照片完成 100%，再次進入本週任務能顯示圖示。此驗證包含本機照片快取，尚不代表另一裝置已能下載照片。
 - 實測修正：一般 Web 啟動不再誤當 OAuth 回呼；返回網址完全移除 query／fragment，避免多出 `?#` 與精確 allow list 不符。
 - Chrome 登出／再次登入：登出後回到本機 0/7 進度；以相同已核准權限再次登入，實際 OAuth request 的返回網址不再帶 `?#`，回到原群組 2/7 進度。
-- 尚待驗證／補齊：Android／iOS 登入、照片跨裝置下載／中斷重試／更換移除、雙裝置同步、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除、雲端隱私政策。尚未 push、發布或合併 master。
+- 尚待驗證／補齊：Android／iOS 登入、照片跨裝置下載／中斷重試／更換移除、雙裝置同步、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除。雲端隱私政策／manifest 已更新；本輪經擁有者授權準備合併 master 與 TestFlight 1.2.0，發布實況見 `docs/release/ios-release.md`。
 
 ### 本輪建置
 

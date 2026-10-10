@@ -17,7 +17,8 @@
 - [x] Web SQLite／IndexedDB 持久儲存 Chrome 實測
 - [ ] Discord 登入後雙裝置、斷線、照片跨裝置下載／重試／更換移除與帳號切換端到端實測
 - [ ] 雲端小工具背景打卡（目前引導開啟 App）、群組照片牆、照片孤兒檔清理
-- [ ] 帳號刪除、資料刪除與雲端隱私政策
+- [x] 雲端隱私政策與 iOS privacy manifest 更新（1.2.0）
+- [ ] 帳號刪除、雲端資料刪除（含 Auth、照片與群組擁有權）
 
 設計與目前驗收：[docs/backend/supabase-plan.md](docs/backend/supabase-plan.md)。
 ## Android 下載入口（2026-10-10）
@@ -25,11 +26,32 @@
 - [x] 像素風 `/download/` 頁面：版本、下載、網頁版、安裝教學、資料保存提醒
 - [x] Pages 建置加入下載頁存在檢查
 - [x] `android-v1.1.0-2` APK 上傳、公開下載驗證（重新下載 SHA-256 一致）
-- [ ] 擁有者確認合併下載頁至 `master`，驗證 Pages 公開網址
+- [x] 下載頁 PR #2 已合併 `master`，Pages run 38014232679 成功（2026-10-10）
 - [ ] 乾淨安裝與覆蓋舊版的 Android 真機驗收
 - [ ] 後續 APK 自動建置發布：先將固定 Android 簽章納入 secret store
 
 發布方式、限制與證據：[Android 發布](docs/release/android-release.md)。
+
+## 可交接的未完成項目（2026-10-10）
+
+| 工作 | 目前狀態 | 完成條件 |
+| --- | --- | --- |
+| Android 雲端 Widget | 未實作，雲端模式引導開 App | App 關閉時操作能寫入正確帳號／群組的離線佇列，重連同步，登出後隔離 |
+| iOS 雲端 Widget | 未實作，現有 AppIntent 只處理本機 | App Group／背景 engine 與雲端佇列整合；真機冷啟動驗證 |
+| App ↔ Widget 更新 | App 可寫入顯示資料，跨裝置背景更新未完成 | 本機／遠端改動與登出切群組後更新，遵守 OS 刷新限制 |
+| 自動同步觸發 | 已有編輯、回前景、手動同步 | 補網路恢復監聽／Realtime 訂閱及生命週期 |
+| 手機登入 | 程式與 deep link 已配置，未真機驗 | Android／iOS Discord 授權、取消、冷啟動、session 過期 |
+| 雙裝置與離線 | 佇列、衝突、帳號隔離有單元測試 | 兩台真機打卡／取消、同時修改、斷網重連、匯入、換帳號端到端測試 |
+| 照片同步 | Chrome 上傳與 metadata 實測通過 | 清快取或第二裝置下載、重試、替換、移除與跨組／離組權限驗證 |
+| 群組照片牆 | 未實作 | 顯示同組分享照片，移除／離組後權限生效 |
+| 孤兒照片清理 | 未實作 | 可恢復的清理流程，避免誤刪正在上傳的檔案 |
+| 多人群組 | UI、RPC、RLS 測試已有 | 真人多帳號邀請到期、加入／離組、加油端到端驗證 |
+| 帳號與資料刪除 | 未實作 | 刪除 Auth、私人／群組資料、照片及擁有權轉移規則 |
+| 商店雲端資訊 | 隱私頁／manifest／測試文字已更新 | ASC 資料收集標籤、支援頁、刪除流程、正式版驗收 |
+| Pages 雲端版 | 尚未啟用，公開網頁仍本機 | 確定啟用後才加 callback allow list、CI define 並驗證登入 |
+| Android 公開新版 | 下載頁仍 1.1.0 (2) | 固定正式簽章、乾淨安裝／升級驗證，再發布雲端 APK |
+
+1.2.0 本輪只發布已完成的功能；以上未完成項目保持未勾選，不能把建置成功當成功能驗收。
 
 ## 之後發想
 
@@ -71,11 +93,11 @@
 ## 還沒決定
 
 - [ ] 提醒通知（每日心得、週日回顧）要不要做
-- [ ] iOS 桌面小工具的樣子（App 內 🧪 →「iOS 桌面小工具預覽」）OK 的話，用 WidgetKit 做成真的
+- [x] iOS WidgetKit 已實作並包含於 1.1.0 (3)；本機模式模擬器通過，真機待驗
 
 ## 架構討論之後要做
 
-- [ ] 後端：讓大家真的看到彼此進度、加油數是真的（現在隊友是示範資料）
+- [x] Supabase 後端與真實群組／加油已實作；真人多人端到端驗收待補
 - [ ] 中文也換成像素字型（例如俐方體11號 Cubic 11，OFL 授權）
 - [ ] 像素風 App 圖示（上架 App Store 前必須）
 - [x] iOS 桌面小工具（WidgetKit，鍵帽可直接打卡；需要發 `v<版本>` 才會進 TestFlight，擁有者要先在 Apple Developer 開好 App Group，見 docs/release/ios-release.md）
@@ -84,9 +106,10 @@
 ## iOS 上架（見 docs/release/）
 
 - [x] Codemagic → TestFlight 管線：1.0.0 (1) 已內測可用、已送外部 Beta 審查（2026-10-06）
-- [ ] 啟用 Shorebird：Console 建 API key＋GitHub token Regenerate → `setup_secrets.py --only github,shorebird` → commit shorebird.yaml → 打 `v1.0.0` 基底版 → 試 `patch-1`
+- [x] Shorebird 已啟用，1.0.0 (2)／1.1.0 (3) 完整發布成功
+- [ ] Shorebird patch 真實發布驗收（程式與模擬測試已有）
 - [x] Bundle ID `com.jacklope.omiApp`、App Store Connect App、內部群組、Codemagic App（2026-10-06）
-- [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（已配置，待實跑）
+- [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（1.1.0 (3) 已全自動實跑）
 - [x] TestFlight 測試資訊（含回饋信箱、審查聯絡人）
 - [ ] 正式版拿掉 Demo 內容、挑戰日期不要寫死（審查指南 2.2）
 - [ ] 支援頁（隱私權政策頁已完成）

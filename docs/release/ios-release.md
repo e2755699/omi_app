@@ -5,6 +5,17 @@
 
 > 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成，沒有觸發 iOS 發布；詳見 [後端規劃](../backend/supabase-plan.md)。
 
+## 1.2.0 發布追蹤（2026-10-10）
+
+- 擁有者已授權 PR 合併 master 與最新 TestFlight；目前準備 `v1.2.0` 完整發布，成功證據待 CI／Apple 回報後補。
+- 完整發布原因：新增 Supabase／SQLite 原生依賴及 OAuth deep link；不能使用舊基底的 Dart patch。
+- `ios-testflight` 與 `ios-patch` 都傳入 `-- --dart-define-from-file=config/supabase.dev.json`，目標為現有 `omi-app-dev`。此檔只含公開 URL／publishable key，不含服務端秘密；Pages 保持本機模式。
+- 依 [Shorebird release](https://docs.shorebird.dev/code-push/release/)／[patch](https://docs.shorebird.dev/code-push/patch/) 官方文件透過 `--` 傳遞 Flutter 建置參數。
+- CI 預檢更新 TestFlight 描述／審查備註並保留聯絡資訊；失敗即停止昂貴建置。發布工具 43 項隔離測試通過，Flutter analyze 0 issue／37 項測試通過。
+- 更新 What to Test、公開隱私政策、iOS privacy manifest；依 [Apple 資料類型](https://developer.apple.com/documentation/bundleresources/app-privacy-configuration/nsprivacycollecteddatatypes/nsprivacycollecteddatatype) 宣告雲端帳號、健康／健身、照片與使用者內容，用於 App 功能，與帳號關聯且不追蹤。
+- 已測：Chrome 真實 Discord 登入、群組打卡與私人心得、照片上傳、重新登入；手機登入、雙裝置、照片下載及雲端 Widget 仍待驗。完整交接見 [TODO](../../TODO.md)。
+- 1.2.0 Widget 在雲端模式引導開 App；下方舊版 Widget 模擬器結果只適用於本機模式。
+
 ## 怎麼發布
 
 | 改了什麼 | 打什麼 tag | 結果 |

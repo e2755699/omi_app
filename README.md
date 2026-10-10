@@ -4,11 +4,11 @@ The Omi Challenge（84 天刻意生活）的打卡 App。薛西弗斯每天把�
 
 把每天的好習慣變成看得見的能量槽，按下機械鍵盤的鍵帽就是打卡，和隊友一起集氣、慶祝。
 
-> 目前是 **開發／測試版**：可不登入使用，訪客紀錄只存在裝置上，也看不到其他玩家。Discord 已啟用，Chrome 真實登入、群組建立、打卡／私人心得同步及照片上傳已驗證；手機與雙裝置驗收仍待完成。預設建置仍是本機模式，帶開發設定的 APK 可連雲端。詳見 [後端規劃](docs/backend/supabase-plan.md)。
+> 目前是 **開發／測試版**：可不登入使用，訪客紀錄只存在裝置上，也看不到其他玩家。Discord 已啟用，Chrome 真實登入、群組建立、打卡／私人心得同步及照片上傳已驗證；手機與雙裝置驗收仍待完成。預設建置仍是本機模式，TestFlight 1.2.0 與帶開發設定的 APK 可連雲端。詳見 [後端規劃](docs/backend/supabase-plan.md)。
 
 - **網頁版 Demo**：https://e2755699.github.io/omi_app/ （每次 push `master` 自動更新）
 - **iOS**：TestFlight 測試中（內測已開放，外部測試送審中）
-- **Android**：[APK 下載頁](https://e2755699.github.io/omi_app/download/)（部署後可用）；社群測試版，Google Play 尚未上架
+- **Android**：[APK 下載頁](https://e2755699.github.io/omi_app/download/)；社群測試版，Google Play 尚未上架
 - **挑戰期間**：主辦第一輪 2026-10-09 → 2026-12-31（84 天）。App 裡每個人從開始用的那天算 Day 1（教學可選今天或下週一），結束固定 12/31。規則與 FAQ：[The Omi Challenge Wiki](https://app.notion.com/p/The-Omi-Challenge-Wiki-3bb548081c1880f18874fce64262ecb5)；需求整理：[docs/PRD.md](docs/PRD.md)
 
 ## 挑戰規則（The Rules）
@@ -31,7 +31,7 @@ Nourish 的三選至少二和作息時間在開跑前決定、之後固定。
 - **本週任務**：回顧三題＋每週一張照片，照片排成照片牆。
 - **登入**：教學最後一步提供 Discord 登入與「先在本機使用」；首頁可再開啟帳號頁。Discord provider 已啟用，登入不會自動上傳本機紀錄。
 - **隊友**：本機模式不顯示其他玩家；完成 Discord 設定的開發建置可建立／加入群組、查看隊友進度與加油。
-- **桌面小工具（Android／iOS）**：顯示收到的加油數，直接在桌面按鍵帽打卡（iOS 需要 17 以上；點標頭或「寫 Reflect」會開啟 App）。
+- **桌面小工具（Android／iOS）**：本機模式可按鍵帽打卡（iOS 需要 17 以上）。雲端模式目前引導開啟 App 記錄與同步，背景寫入及跨裝置更新尚未完成。
 - **像素風**：黑色缺角邊框、硬陰影、分段能量條、自繪 5×7 字型、有按鈕感的鍵帽。
 
 ## 開發
@@ -79,7 +79,7 @@ git tag patch-3 && git push origin patch-3
 
 預設本機建置不需要帳號，紀錄和照片保留在裝置上。現行公開版詳見 [隱私權政策](https://e2755699.github.io/omi_app/privacy/)。
 
-帶 Supabase 設定的開發建置可透過 Discord 登入；選擇群組後，該空間的紀錄會同步至 Supabase。心得與體重只給本人看，群組成員可讀進度及已分享照片。原本的訪客資料只有另外確認匯入才上傳。公開啟用雲端功能前，仍須更新隱私政策、完成帳號刪除與真機驗收。
+TestFlight 1.2.0 起與帶 Supabase 設定的開發建置可透過 Discord 登入；選擇群組後，該空間的紀錄會同步至 Supabase。心得與體重只給本人看，群組成員可讀進度及已分享照片。原本的訪客資料只有另外確認匯入才上傳。隱私政策已補充雲端資料；帳號刪除、真機與雙裝置驗收尚未完成。Pages 仍是本機模式。
 
 ## 授權
 

@@ -131,7 +131,8 @@ workflows:
             --flutter-version="$FLUTTER_VERSION" \
             --build-name="$RELEASE_VERSION" \
             --build-number="$RELEASE_BUILD_NUMBER" \
-            --export-options-plist="$HOME/export_options.plist"
+            --export-options-plist="$HOME/export_options.plist" \
+            -- --dart-define-from-file=config/supabase.dev.json
 
       - name: 上傳 App Store Connect（只上傳，不送審）
         script: |
@@ -179,7 +180,8 @@ workflows:
           set -euo pipefail
           echo patch > "$HOME/release_phase"
           # patch 只送 Dart 差異，不需要簽章；動到原生程式或資源檔時 Shorebird 會擋下，請改發新版本 tag
-          shorebird patch ios --release-version=latest --no-codesign 2>&1 | tee "$HOME/patch.log"
+          shorebird patch ios --release-version=latest --no-codesign \
+            -- --dart-define-from-file=config/supabase.dev.json 2>&1 | tee "$HOME/patch.log"
           python3 - <<'PY'
           import os, re
           log = open(os.path.join(os.environ["HOME"], "patch.log"), encoding="utf-8", errors="ignore").read()

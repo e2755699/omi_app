@@ -29,31 +29,30 @@
 <body>
 <main>
   <h1>隱私權政策</h1>
-  <p class="meta">Omi～快樂的 Σίσυφος（iOS／Android）・生效日期 2026 年 10 月 6 日</p>
+  <p class="meta">Omi～快樂的 Σίσυφος（iOS／Android／Web）・更新日期 2026 年 10 月 10 日</p>
 
-  <h2>我們不收集你的個人資料</h2>
-  <p>Omi 目前不需要註冊帳號，也不會連上任何伺服器。你在 App 裡的設定、打卡紀錄、每日 Reflect 和每週回顧，都只存在你自己的裝置上（App 的本機儲存），開發者看不到。</p>
+  <h2>你可以選擇只在本機使用</h2>
+  <p>不登入時，設定、打卡、體重、心得、回顧與照片保留在你的裝置上，不會上傳到 Omi 的 Supabase 資料庫，也看不到其他玩家。TestFlight 1.2.0 起提供選用的 Discord 登入與雲端群組；沒有啟用雲端設定的版本仍只有本機模式。</p>
 
-  <h2>沒有廣告、追蹤或分析工具</h2>
-  <p>App 沒有放廣告，也沒有使用任何追蹤、統計或第三方分析 SDK，不會跨 App 或網站追蹤你。</p>
+  <h2>選擇登入與群組同步時</h2>
+  <p>Discord 會依你的授權向 Supabase 提供帳號識別、電子郵件與個人檔案資訊（例如名稱、頭像），用於登入。Omi 不會取得你的 Discord 密碼。選擇群組後，該群組空間的設定、打卡、體重、心得、回顧、照片、成員關係及加油紀錄會同步到 Supabase；目前測試環境位於日本東京。原本的訪客紀錄只有在你另外確認匯入後才上傳。</p>
+  <p>同群組成員可讀取你的暱稱、挑戰進度與已分享照片；體重、心得內容與回顧內容只供本人透過 App 存取。開發者為維運服務而持有後端管理權限。資料傳輸使用 HTTPS，照片存放於私人 bucket，App 透過有期限的連結讀取。</p>
 
-  <h2>示範資料</h2>
-  <p>目前是測試版：App 裡的「隊友」是內建的示範資料，不是真實使用者，你的紀錄也不會分享給其他人。</p>
+  <h2>服務提供者與用途</h2>
+  <p>Discord 用於帳號驗證，Supabase 用於登入、資料庫與照片儲存；服務可能保留登入與請求等必要營運紀錄。Shorebird 用於檢查與下載 App 程式更新。相關處理受各服務的政策規範：<a href="https://discord.com/privacy">Discord</a>、<a href="https://supabase.com/privacy">Supabase</a>、<a href="https://shorebird.dev/privacy/">Shorebird</a>。</p>
+  <p>App 沒有廣告或第三方行為分析功能，不以這些資料進行跨 App 廣告追蹤。</p>
 
   <h2>TestFlight 測試</h2>
-  <p>如果你透過 Apple 的 TestFlight 參加測試，Apple 會依它的政策收集當機紀錄，以及你主動送出的意見回饋與截圖，並提供給開發者用來改善 App。這部分由 <a href="https://www.apple.com/legal/privacy/">Apple 隱私權政策</a> 規範。</p>
+  <p>Apple 可能將測試診斷、你主動提交的回饋及截圖提供給開發者，依 <a href="https://www.apple.com/legal/privacy/">Apple 隱私權政策</a> 處理。</p>
 
-  <h2>刪除資料</h2>
-  <p>所有資料都在你的裝置上：刪除 App 就會一併刪除。</p>
+  <h2>資料保存與刪除</h2>
+  <p>登出、離開群組或移除 App 不會自動刪除雲端帳號與已同步資料。雲端資料目前會保留在測試服務，尚無自動到期清理；App 內完整帳號與資料刪除功能仍在開發。照片替換後的未引用檔案清理也尚未完成。</p>
+  <p>若要提出刪除要求，請先透過下方聯絡管道提出，我們會另行確認身分與範圍。請不要在公開 Issue 貼電子郵件、照片、心得或其他私人資料。尚未登入的本機資料可透過裝置的 App 資料管理移除；系統備份依裝置設定管理。</p>
 
-  <h2>之後的變更</h2>
-  <p>正式版若加入需要伺服器的功能（例如真的和隊友同步進度），我們會在上線前更新這份政策，說明收集哪些資料、為什麼收集、如何刪除，並在 App 內告知。</p>
-
-  <h2>聯絡我們</h2>
-  <p>對隱私有任何問題，請到 <a href="https://github.com/e2755699/omi_app/issues">GitHub Issues</a> 留言。</p>
-
+  <h2>聯絡與政策更新</h2>
+  <p>有問題可到 <a href="https://github.com/e2755699/omi_app/issues">GitHub Issues</a> 提出。功能或資料用途改變時會更新這份政策。</p>
   <hr>
-  <p class="en"><strong>Privacy Policy (summary in English).</strong> Omi does not collect personal data. It needs no account and makes no network requests; your settings, check-ins and reflections stay on your device. There are no ads, trackers or analytics SDKs. Teammates shown in the current beta are built-in demo data. If you test via TestFlight, Apple may share crash logs and the feedback you choose to send with the developer under Apple's privacy policy. Deleting the app deletes all its data. We will update this policy before adding any server features. Contact: <a href="https://github.com/e2755699/omi_app/issues">GitHub Issues</a>.</p>
+  <p class="en"><strong>English summary.</strong> Guest records stay on your device. Optional Discord login and Supabase group sync are available in cloud-enabled builds, including TestFlight 1.2.0. Authentication information, group records and uploaded photos are stored by Supabase. Group members can access shared progress and photos; weight and reflection text are private within the app. Administrators retain operational access. Sign-out, leaving a group or uninstalling does not delete cloud data. Self-service account deletion and orphan-file cleanup are not yet implemented. Contact us through GitHub Issues without posting private data. Shorebird delivers code updates; Apple may provide TestFlight diagnostics and feedback. No advertising or cross-app ad tracking.</p>
 </main>
 </body>
 </html>

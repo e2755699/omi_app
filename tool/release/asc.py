@@ -189,6 +189,24 @@ def ensure_external_group(client, app_id: str, name: str) -> tuple[dict, bool]:
     return created["data"], True
 
 
+def sync_beta_metadata(client, app_id: str, config: dict) -> None:
+    """更新版本公開文字；保留既有聯絡資訊與審查帳號，不輸出個資。"""
+    locs = client.get_all(f"/v1/apps/{app_id}/betaAppLocalizations", {"limit": 50})
+    loc = next((item for item in locs if item["attributes"].get("locale") == config["beta_locale"]), None)
+    if loc is None:
+        raise ApiError(404, "Configured beta locale missing; create it in App Store Connect first")
+    desired = {"description": config["beta_description"], "privacyPolicyUrl": config["privacy_policy_url"]}
+    if any(loc["attributes"].get(key) != value for key, value in desired.items()):
+        client.patch(f"/v1/betaAppLocalizations/{loc['id']}", {"data": {
+            "type": "betaAppLocalizations", "id": loc["id"], "attributes": desired}})
+    detail = client.get(f"/v1/apps/{app_id}/betaAppReviewDetail")["data"]
+    if detail["attributes"].get("notes") != config["beta_review_notes"]:
+        client.patch(f"/v1/betaAppReviewDetails/{detail['id']}", {"data": {
+            "type": "betaAppReviewDetails", "id": detail["id"],
+            "attributes": {"notes": config["beta_review_notes"]}}})
+    print("TestFlight description, privacy URL and review notes are current")
+
+
 def missing_test_info(client, app_id: str, locale: str) -> list[str]:
     """外部測試送審前 Apple 要求的測試資訊，缺哪些（只讀）。"""
     missing = []
@@ -351,6 +369,12 @@ def preflight(args) -> int:
             print(f"::error::{problem}")
         return 1
 
+    # 在昂貴建置前更新過期的「只有本機／示範隊友」說明；失敗就停止本次發布。
+    try:
+        sync_beta_metadata(client, app["id"], CONFIG)
+    except ApiError as error:
+        print(f"::error::TestFlight metadata update failed: {error}")
+        return 1
     build_number = next_build_number(latest_build_number(client, app["id"]), args.min_build_number)
     values = {
         "BUNDLE_ID": bundle_id,
