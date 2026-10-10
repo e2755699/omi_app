@@ -7,8 +7,11 @@
 - [x] 本機 51 項資料庫斷言、雲端交易測試與 Security Advisor 驗證
 - [x] 登入放在教學最後；可先在本機使用；訪客不顯示其他玩家與假加油
 - [x] OAuth 前保存教學草稿，返回或重開仍停在最後一步；首頁保留帳號入口
-- [ ] Discord 應用條款確認、provider 與 redirect allow list 設定，三平台實測
-- [x] 帳號／群組隔離的 SQLite 離線佇列、衝突處理、資料匯入與照片同步程式；32 項 Flutter 測試
+- [x] Discord 應用條款、秘密與 provider 完成；手機／本機 redirect allow list 已保存
+- [x] Chrome 真實 Discord 登入、教學草稿返回、群組建立、打卡／私人心得同步及重新載入保留資料
+- [x] 修正一般 Web 啟動誤判登入回呼、返回網址多出 `?#`；37 項 Flutter 測試通過
+- [ ] Android／iOS 登入、照片上傳與雙裝置實測；Chrome 照片測試目前缺少外掛本機檔案權限
+- [x] 帳號／群組隔離的 SQLite 離線佇列、衝突處理、資料匯入與照片同步程式
 - [x] 真實隊友、邀請碼與加油介面；切空間關閉舊編輯頁，登出清除隊友
 - [x] Web SQLite／IndexedDB 持久儲存 Chrome 實測
 - [ ] Discord 登入後雙裝置、斷線、Storage HTTP 與帳號切換端到端實測

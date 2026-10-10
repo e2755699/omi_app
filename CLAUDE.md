@@ -9,7 +9,7 @@
 **目前是 Demo／測試階段**：
 - 預設建置保留本機（`shared_preferences`），不顯示示範隊友。2026-10-10 擁有者授權 Supabase 後端與 Discord 登入，登入放在教學最後，可跳過。
 - 🧪 選單可以「換一天看看」（previewDate）；開跑日存在 Profile，結束日 `challengeEnd` 寫死在 `lib/models/challenge.dart`。
-- Supabase 開發專案已建立，Flutter 雲端工作區使用 SQLite 離線佇列；Discord provider、真機與端到端驗收仍未完成。實際狀態看 `docs/backend/supabase-plan.md`，不要把單元測試通過當成正式上線。
+- Supabase 開發專案與 Discord provider 已配置，Flutter 雲端工作區使用 SQLite 離線佇列；Chrome 登入、群組建立與打卡／私人心得同步已實測。手機、照片及雙裝置驗收仍未完成。實際狀態看 `docs/backend/supabase-plan.md`，不要把單元測試通過當成正式上線。
 - 正式上架 App Store 前要拿掉 Demo 內容（審查指南 2.2），清單在 `docs/release/app-store-listing.md`。
 
 ## 指令

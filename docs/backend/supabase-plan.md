@@ -6,7 +6,7 @@
 
 讓目前的本機 Demo 逐步具備帳號、群組、真實隊友進度、加油與照片同步。保留現有像素風與 ChallengeStore 對畫面的介面。
 
-本次建立資料庫基礎與權限、教學最後一步的可選 Discord 登入、群組介面、離線佇列、衝突處理與本機匯入。Discord provider 仍停在擁有者確認應用條款，因此 OAuth 與真實裝置端到端驗證尚未完成。雲端資源建立狀態以本文件「部署紀錄」為準。
+本次建立資料庫基礎與權限、教學最後一步的可選 Discord 登入、群組介面、離線佇列、衝突處理與本機匯入。Discord provider 已啟用，Chrome 已實際完成登入、返回教學草稿、建立群組、打卡與私人心得同步；手機、照片上傳與雙裝置驗收仍未完成。雲端資源建立狀態以本文件「部署紀錄」為準。
 
 ## 結構
 
@@ -90,18 +90,24 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 - 雲端專案：[omi-app-dev](https://supabase.com/dashboard/project/iprkeejfleqyrqvliqya)，已建立且健康。
 - 三份 migration 已套用；9 張表開啟 RLS；private schema 保存特權實作，公開 RPC 使用 security invoker 包裝。
 - 本機 Postgres 51 項斷言通過；真實雲端交易測試通過，測試資料全部 rollback；安全 Advisor 沒有警告。
-- Discord provider：尚未啟用，Discord 建立應用停在使用者確認條款。
-- Flutter：32 項測試通過；包含本機訪客、OAuth 草稿、真 SQLite 佇列、斷線重試、衝突、HTTP 分頁／條件更新、匯入與隊友日期。預設 APK／Web 建置只用本機；雲端設定透過 dart-define 啟用。
+- Discord provider：已啟用，Client ID `1558290248033894441`；秘密由擁有者直接保存到 Supabase。公開 Auth settings 確認 Discord 啟用、anonymous 關閉。
+- 登入 URL：開發 Site URL `http://127.0.0.1:5173/`；allow list 為 `http://127.0.0.1:5173/`、`omiapp://auth-callback`。GitHub Pages 尚未加入，也未部署雲端版。
+- Flutter：37 項測試通過；包含本機訪客、OAuth 草稿與回呼網址、真 SQLite 佇列、斷線重試、衝突、HTTP 分頁／條件更新、匯入與隊友日期。預設建置只用本機；本輪 APK 透過 dart-define 啟用開發雲端。
 - Chrome：SQLite worker 交易與 IndexedDB 持久儲存實測，重新載入顯示開啟次數 2、累積寫入 20，資料保留正常。
+- Chrome 實際登入：擁有者確認 Discord `email identify` 授權後，返回教學第 11 步並顯示「Discord 已登入 ✓」；角色草稿保留。
+- App 建立 `Omi sync test 20261010`（`53619864-62bd-4480-8083-2398efdd9412`），測試暱稱 `Omi test`。閱讀與每日反思各 1 筆、version 1；伺服器查詢確認私人心得等於合成測試文字，未匯入訪客資料。重新載入保留登入、群組與 2/7 每日進度，待同步與衝突皆為 0。這個測試群組仍保留於開發專案。
+- 照片實測受阻：Chrome 的 ChatGPT 外掛未開啟「Allow access to file URLs」，選擇專案圖示時被工具拒絕，雲端照片仍 0 筆；尚不能宣稱 Storage HTTP 驗收完成。
+- 實測修正：一般 Web 啟動不再誤當 OAuth 回呼；返回網址完全移除 query／fragment，避免多出 `?#` 與精確 allow list 不符。
+- Chrome 登出／再次登入：登出後回到本機 0/7 進度；以相同已核准權限再次登入，實際 OAuth request 的返回網址不再帶 `?#`，回到原群組 2/7 進度。
 - 尚待驗證／補齊：Discord 三平台登入、Storage HTTP 與雙裝置實測、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除、雲端隱私政策。尚未 push、發布或合併 master。
 
 ### 本輪建置
 
 - `flutter analyze --no-pub`：0 issue。
-- `flutter test --no-pub`：32 項通過。
-- Android release APK：`build/app/outputs/flutter-apk/app-release.apk`，63,807,162 bytes；預設本機模式。
-- APK SHA-256：`FB93176C5A6F352A5A73C47261AEC8C0E721E6F0444DDBF822681DD6938BB8E4`。
-- Web release：使用 `/omi_app/` base href，包含 SQLite worker 與 WASM 資產。
+- `flutter test --no-pub`：37 項通過。
+- Android release APK：`build/app/outputs/flutter-apk/app-release.apk`，64,478,906 bytes；使用 `--dart-define-from-file=config/supabase.dev.json` 連接開發雲端，未公開發布。
+- APK SHA-256：`245D36F1F46AC8EB7987B1A08C7F5F62A3F931AA7EC171ED779350CF2DF7C412`。
+- 先前 Web release：使用 `/omi_app/` base href，包含 SQLite worker 與 WASM 資產；本輪 Chrome 用帶雲端設定的 debug web-server 驗證。
 - `home_widget` 有未來 Flutter／Kotlin Gradle 相容性提醒，這次 Android 建置成功；未在本輪升級不相關套件。
 
 ## 官方參考

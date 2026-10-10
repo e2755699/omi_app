@@ -19,6 +19,26 @@ class AccountController extends ChangeNotifier {
 
   static const redirectUrl = 'omiapp://auth-callback';
 
+  /// 只處理真正的登入回呼，避免一般開啟網頁也被當成登入失敗。
+  static bool isAuthCallbackUri(Uri uri, {required bool isWeb}) {
+    if (!isWeb && (uri.scheme != 'omiapp' || uri.host != 'auth-callback')) return false;
+    try {
+      final fragment = Uri.splitQueryString(uri.fragment);
+      return const [
+        'code',
+        'error',
+        'error_code',
+        'error_description',
+      ].any((key) => uri.queryParameters.containsKey(key) || fragment.containsKey(key));
+    } on FormatException {
+      return false;
+    }
+  }
+
+  /// 重建網址以移除 query 與 fragment，不能留下空的 ?#，否則不符 allow list。
+  static String webRedirectUrl(Uri uri) =>
+      Uri(scheme: uri.scheme, host: uri.host, port: uri.hasPort ? uri.port : null, path: uri.path).toString();
+
   static Future<AccountController> initialize() async {
     const url = String.fromEnvironment('SUPABASE_URL');
     const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
@@ -30,7 +50,7 @@ class AccountController extends ChangeNotifier {
         debug: false,
         authOptions: FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce,
-          detectSessionInUriPredicate: (uri) => kIsWeb || (uri.scheme == 'omiapp' && uri.host == 'auth-callback'),
+          detectSessionInUriPredicate: (uri) => isAuthCallbackUri(uri, isWeb: kIsWeb),
         ),
       );
       return AccountController._(supabase.client);
@@ -59,7 +79,7 @@ class AccountController extends ChangeNotifier {
     try {
       final launched = await _client.auth.signInWithOAuth(
         OAuthProvider.discord,
-        redirectTo: kIsWeb ? Uri.base.replace(query: '', fragment: '').toString() : redirectUrl,
+        redirectTo: kIsWeb ? webRedirectUrl(Uri.base) : redirectUrl,
       );
       _message = launched ? '完成 Discord 登入後，回來繼續。' : '無法開啟登入頁，請再試一次。';
     } catch (_) {

@@ -12,7 +12,7 @@
 
 ## 尚未完成
 
-Discord OAuth provider 與回呼實機驗證仍待擁有者完成 Discord 應用條款及秘密設定。Flutter 已加入群組、匯入、SQLite 離線佇列、版本衝突、照片上傳與隊友進度；目前完成單元／HTTP 替身測試，尚不能宣稱 Discord 到雲端的端到端驗證已通過。
+Discord OAuth provider 已啟用，Chrome 真實登入、教學草稿返回、群組建立、打卡／私人心得同步及重新載入保留資料已通過。Flutter 已加入群組、匯入、SQLite 離線佇列、版本衝突、照片上傳與隊友進度；Android／iOS、雙裝置與照片端到端驗收仍待完成。照片測試目前因 Chrome 外掛未允許本機檔案 URL 存取而受阻。
 
 雲端模式的小工具目前引導開啟 App，避免背景寫入另一份訪客紀錄。帳號刪除、雲端隱私政策、群組照片牆、照片孤兒檔清理及真機驗收仍未完成，這是開發版，尚未公開部署。
 
@@ -27,7 +27,7 @@ node tool/backend/test-database.mjs "$env:TEMP\omi-supabase-verify\node_modules\
 
 實際執行 Postgres 的 migration、函數、trigger、資料限制與 RLS；Auth／Storage 的基礎 schema 為測試替身，不能取代雲端整合驗證。
 
-目前 51 項資料庫斷言、32 項 Flutter 測試通過。`test/sync_test.dart` 使用真正 SQLite，`test/cloud_repository_test.dart` 驗證 HTTP 分頁與版本條件，`test/cloud_workspace_test.dart` 驗證匯入、私人心得與隊友日期。Chrome 已執行 `tool/backend/web_storage_probe.dart`，重新載入確認 IndexedDB 保留資料。
+目前 51 項資料庫斷言、37 項 Flutter 測試通過。`test/sync_test.dart` 使用真正 SQLite，`test/cloud_repository_test.dart` 驗證 HTTP 分頁與版本條件，`test/cloud_workspace_test.dart` 驗證匯入、私人心得與隊友日期，`test/account_controller_test.dart` 驗證 OAuth 回呼辨識與精確返回網址。Chrome 已執行 `tool/backend/web_storage_probe.dart`，重新載入確認 IndexedDB 保留資料。
 
 ```powershell
 flutter test
@@ -40,15 +40,17 @@ Web 需一起部署 `web/sqlite3.wasm` 與 `web/sqflite_sw.js`；這些是 `sqfl
 
 ## Flutter 啟動
 
-一般 `flutter run` 為本機模式，教學最後可以跳過登入。準備好 Discord provider 後才使用：
+一般 `flutter run` 為本機模式，教學最後可以跳過登入。連接已配置的開發專案：
 
 ```powershell
 flutter run --dart-define-from-file=config/supabase.dev.json
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5173 --dart-define-from-file=config/supabase.dev.json
+flutter build apk --release --dart-define-from-file=config/supabase.dev.json
 ```
 
 設定檔只有公開的 URL 與 publishable key，不含管理權限密鑰。不要把資料庫密碼、Discord Client Secret 或 Supabase secret key 放進這個檔案。
 
 Discord OAuth 回呼：`https://iprkeejfleqyrqvliqya.supabase.co/auth/v1/callback`。
-Supabase redirect allow list：手機 `omiapp://auth-callback`；Web `https://e2755699.github.io/omi_app/`，本機測試使用固定 port 並逐一加入網址。
+Supabase 已保存的 redirect allow list：手機 `omiapp://auth-callback`、本機 `http://127.0.0.1:5173/`；開發 Site URL 為後者。`https://e2755699.github.io/omi_app/` 尚未加入 allow list，公開雲端部署前另行配置。
 
 詳細範圍、隱私與同步設計見 [後端規劃](../docs/backend/supabase-plan.md)。
