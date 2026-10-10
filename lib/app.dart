@@ -24,6 +24,12 @@ class OmiApp extends StatelessWidget {
       locale: _zhTW,
       supportedLocales: const [_zhTW, Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      // Android 15+ draws edge-to-edge, so keep every page clear of the system
+      // navigation bar / home indicator. Top is left to each AppBar or page.
+      builder: (context, child) => ColoredBox(
+        color: PixelColors.background,
+        child: SafeArea(top: false, child: child!),
+      ),
       // 還沒走完設定教學就先看教學，走完才進首頁。
       home: ListenableBuilder(
         listenable: store,
