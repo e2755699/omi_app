@@ -6,7 +6,7 @@
 
 讓目前的本機 Demo 逐步具備帳號、群組、真實隊友進度、加油與照片同步。保留現有像素風與 ChallengeStore 對畫面的介面。
 
-本次建立資料庫基礎與權限、教學最後一步的可選 Discord 登入、群組介面、離線佇列、衝突處理與本機匯入。Discord provider 已啟用，Chrome 已實際完成登入、返回教學草稿、建立群組、打卡與私人心得同步；手機、照片上傳與雙裝置驗收仍未完成。雲端資源建立狀態以本文件「部署紀錄」為準。
+本次建立資料庫基礎與權限、教學最後一步的可選 Discord 登入、群組介面、離線佇列、衝突處理與本機匯入。Discord provider 已啟用，Chrome 已實際完成登入、返回教學草稿、建立群組、打卡、私人心得與照片上傳；手機與雙裝置驗收仍未完成。雲端資源建立狀態以本文件「部署紀錄」為準。
 
 ## 結構
 
@@ -96,17 +96,17 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 - Chrome：SQLite worker 交易與 IndexedDB 持久儲存實測，重新載入顯示開啟次數 2、累積寫入 20，資料保留正常。
 - Chrome 實際登入：擁有者確認 Discord `email identify` 授權後，返回教學第 11 步並顯示「Discord 已登入 ✓」；角色草稿保留。
 - App 建立 `Omi sync test 20261010`（`53619864-62bd-4480-8083-2398efdd9412`），測試暱稱 `Omi test`。閱讀與每日反思各 1 筆、version 1；伺服器查詢確認私人心得等於合成測試文字，未匯入訪客資料。重新載入保留登入、群組與 2/7 每日進度，待同步與衝突皆為 0。這個測試群組仍保留於開發專案。
-- 照片實測受阻：Chrome 的 ChatGPT 外掛未開啟「Allow access to file URLs」，選擇專案圖示時被工具拒絕，雲端照片仍 0 筆；尚不能宣稱 Storage HTTP 驗收完成。
+- 照片上傳實測通過：擁有者開啟 Chrome 外掛檔案存取後，用 `web/icons/Icon-192.png` 測試。修正 Web 上 `1 << 32` 溢位為 0、造成照片檔名亂數產生失敗；改用數值常數 `0x100000000`。App 上傳成功，伺服器確認 `weekly_photos` version 1、週期 `2026-10-05`，且私人 Storage 對應檔案存在（image/png，3,724 bytes）。重新載入 App 顯示照片完成 100%，再次進入本週任務能顯示圖示。此驗證包含本機照片快取，尚不代表另一裝置已能下載照片。
 - 實測修正：一般 Web 啟動不再誤當 OAuth 回呼；返回網址完全移除 query／fragment，避免多出 `?#` 與精確 allow list 不符。
 - Chrome 登出／再次登入：登出後回到本機 0/7 進度；以相同已核准權限再次登入，實際 OAuth request 的返回網址不再帶 `?#`，回到原群組 2/7 進度。
-- 尚待驗證／補齊：Discord 三平台登入、Storage HTTP 與雙裝置實測、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除、雲端隱私政策。尚未 push、發布或合併 master。
+- 尚待驗證／補齊：Android／iOS 登入、照片跨裝置下載／中斷重試／更換移除、雙裝置同步、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除、雲端隱私政策。尚未 push、發布或合併 master。
 
 ### 本輪建置
 
 - `flutter analyze --no-pub`：0 issue。
 - `flutter test --no-pub`：37 項通過。
 - Android release APK：`build/app/outputs/flutter-apk/app-release.apk`，64,478,906 bytes；使用 `--dart-define-from-file=config/supabase.dev.json` 連接開發雲端，未公開發布。
-- APK SHA-256：`245D36F1F46AC8EB7987B1A08C7F5F62A3F931AA7EC171ED779350CF2DF7C412`。
+- APK SHA-256：`6CB699C9F4BC2DDE61102B51C5C3AC243BBBCD4F18CFBA0BE7F2ED11353412BC`。
 - 先前 Web release：使用 `/omi_app/` base href，包含 SQLite worker 與 WASM 資產；本輪 Chrome 用帶雲端設定的 debug web-server 驗證。
 - `home_widget` 有未來 Flutter／Kotlin Gradle 相容性提醒，這次 Android 建置成功；未在本輪升級不相關套件。
 

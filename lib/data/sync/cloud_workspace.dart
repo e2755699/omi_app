@@ -180,7 +180,8 @@ class CloudWorkspace extends ChangeNotifier {
 
   Future<void> setPhoto(DateTime day, String? ref) {
     final period = dateKey(weekStart(day));
-    final nonce = '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 32)}';
+    // Web 的位元運算只有 32 位元；1 << 32 會溢位成 0。
+    final nonce = '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(0x100000000)}';
     return edit(
       'weekly_photos',
       period,

@@ -3,7 +3,7 @@
 > 狀態（2026-10-06）：**第一次真實發布 1.0.0 (1) 已內測可用，外部測試已送 Beta 審查**（等 Apple 結果）。Codemagic → GitHub 的自動觸發因 token 無效失敗，該次改用 `gh` 手動補查；換好 token 後再驗一次。細節見「驗收矩陣」。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
-> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步已通過，37 項 Flutter 測試與 analyze 通過。手機、照片與雙裝置驗收尚待完成，沒有觸發 iOS 發布；詳見 [後端規劃](../backend/supabase-plan.md)。
+> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成，沒有觸發 iOS 發布；詳見 [後端規劃](../backend/supabase-plan.md)。
 
 ## 怎麼發布
 
