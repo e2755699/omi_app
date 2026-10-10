@@ -43,7 +43,9 @@
 - [x] `android-v1.1.0-2` APK 上傳、公開下載驗證（重新下載 SHA-256 一致）
 - [x] 下載頁 PR #2 已合併 `master`，Pages run 38014232679 成功（2026-10-10）
 - [ ] 乾淨安裝與覆蓋舊版的 Android 真機驗收
-- [ ] 後續 APK 自動建置發布：先將固定 Android 簽章納入 secret store
+- [x] `v*` tag 自動建 APK 到 draft release（`.github/workflows/android-apk.yml`，2026-10-10）
+- [x] Windows debug keystore 已放進 GitHub secrets（4 個 `ANDROID_*`，指紋與公開版一致，2026-10-10）
+- [ ] 第一次 `v*` tag 實跑：確認 draft release 的 APK 簽章仍是 `74c189f5…f4f7`
 
 發布方式、限制與證據：[Android 發布](docs/release/android-release.md)。
 

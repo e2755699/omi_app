@@ -65,7 +65,7 @@ docs/release/              發布流程、商店資料、送審準備
 | 情況 | 做法 |
 | --- | --- |
 | 網頁版 | push 到 `master` 就會自動部署（`.github/workflows/pages.yml`） |
-| Android APK | 同一台簽章電腦打包 → GitHub Releases → 更新 `/download/`；見 [Android 發布](docs/release/android-release.md) |
+| Android APK | tag `v*` → GitHub Actions 建 APK 放 draft release（需簽章 secret）→ 核對後公開、更新 `/download/`；見 [Android 發布](docs/release/android-release.md) |
 | iOS：只改 Dart 程式碼 | 打 tag `patch-<數字>` → Shorebird code push，夥伴重開 App 就更新 |
 | iOS：動到原生程式／資源檔／Info.plist | 改 `pubspec.yaml` 的版本後打 tag `v<版本>` → TestFlight（內測＋外部測試） |
 
