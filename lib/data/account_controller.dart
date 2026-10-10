@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// 登入與本機打卡分開：沒有雲端設定或登入失敗，也不影響本機使用。
@@ -9,15 +12,33 @@ class AccountController extends ChangeNotifier {
 
   AccountController._(this._client) {
     _subscription = _client!.auth.onAuthStateChange.listen(
-      (_) => notifyListeners(),
+      (state) {
+        // Drop the "come back after login" hint once the session arrives.
+        if (state.event == AuthChangeEvent.signedIn) _message = null;
+        notifyListeners();
+      },
       onError: (Object error) {
-        _message = '登入沒有完成，可以再試一次，或先在本機使用。';
+        _message = '這次沒登入成功，再試一次看看？不急的話，也可以先自己走。';
         notifyListeners();
       },
     );
   }
 
   static const redirectUrl = 'omiapp://auth-callback';
+  static const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  static const offlineMessage = '好像還沒連上網路呢 📡\n連上之後再來找夥伴吧，你的紀錄都好好收著。';
+
+  /// Building the OAuth URL needs no network, so without this check an offline
+  /// tap opens the browser straight onto an error page.
+  static Future<bool> _online() async {
+    try {
+      // Any HTTP status (even 401) proves the auth server is reachable.
+      await http.get(Uri.parse('$_supabaseUrl/auth/v1/health')).timeout(const Duration(seconds: 5));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// 只處理真正的登入回呼，避免一般開啟網頁也被當成登入失敗。
   static bool isAuthCallbackUri(Uri uri, {required bool isWeb}) {
@@ -40,7 +61,7 @@ class AccountController extends ChangeNotifier {
       Uri(scheme: uri.scheme, host: uri.host, port: uri.hasPort ? uri.port : null, path: uri.path).toString();
 
   static Future<AccountController> initialize() async {
-    const url = String.fromEnvironment('SUPABASE_URL');
+    const url = _supabaseUrl;
     const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
     if (url.isEmpty || key.isEmpty) return AccountController.local();
     try {
@@ -55,7 +76,7 @@ class AccountController extends ChangeNotifier {
       );
       return AccountController._(supabase.client);
     } catch (_) {
-      return AccountController.local().._message = '目前無法連接登入服務，你仍然可以在本機使用。';
+      return AccountController.local().._message = '現在連不上登入服務，先自己走走，紀錄都會留在這台裝置。';
     }
   }
 
@@ -77,13 +98,22 @@ class AccountController extends ChangeNotifier {
     _message = null;
     notifyListeners();
     try {
-      final launched = await _client.auth.signInWithOAuth(
-        OAuthProvider.discord,
-        redirectTo: kIsWeb ? webRedirectUrl(Uri.base) : redirectUrl,
-      );
-      _message = launched ? '完成 Discord 登入後，回來繼續。' : '無法開啟登入頁，請再試一次。';
+      if (!await _online()) {
+        _message = offlineMessage;
+      } else if (kIsWeb) {
+        final launched = await _client.auth.signInWithOAuth(OAuthProvider.discord, redirectTo: webRedirectUrl(Uri.base));
+        _message = launched ? '在 Discord 按下授權，就會回到這裡。' : '無法開啟登入頁，請再試一次。';
+      } else {
+        // System auth session (ASWebAuthenticationSession / Custom Tabs) receives the callback and closes itself.
+        final auth = await _client.auth.getOAuthSignInUrl(provider: OAuthProvider.discord, redirectTo: redirectUrl);
+        final callback = await FlutterWebAuth2.authenticate(url: auth.url, callbackUrlScheme: 'omiapp');
+        await _client.auth.getSessionFromUrl(Uri.parse(callback));
+      }
+    } on PlatformException catch (e) {
+      // CANCELED = user closed the login sheet; not an error.
+      if (e.code != 'CANCELED') _message = '這次沒登入成功，再試一次看看？不急的話，也可以先自己走。';
     } catch (_) {
-      _message = '登入沒有完成，可以再試一次，或先在本機使用。';
+      _message = '這次沒登入成功，再試一次看看？不急的話，也可以先自己走。';
     } finally {
       _busy = false;
       notifyListeners();

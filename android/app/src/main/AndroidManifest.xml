@@ -23,18 +23,24 @@
               />
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="omiapp" android:host="auth-callback" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- 從桌面小工具點進來（例如打卡快捷鍵） -->
             <intent-filter>
                 <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+            </intent-filter>
+        </activity>
+        <!-- Discord 登入回呼由 flutter_web_auth_2 接住並關掉登入頁，不經過 MainActivity -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="omiapp" android:host="auth-callback" />
             </intent-filter>
         </activity>
         <!-- 小工具上的鍵帽在背景直接打卡（呼叫 Dart 的 homeWidgetInteraction） -->
