@@ -43,6 +43,7 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 ## 發布（細節：`docs/release/ios-release.md`）
 
 - **網頁版**：push `master` → `.github/workflows/pages.yml` 自動部署到 GitHub Pages。
+- **Android APK**：tag `v*` 同時觸發 `.github/workflows/android-apk.yml`，建 APK 放 GitHub draft release（不上 Google Play），擁有者核對後公開並更新下載頁。細節：`docs/release/android-release.md`。
 - **iOS 只改 Dart**：打 tag `patch-<數字>` → Codemagic `ios-patch` → Shorebird patch。
 - **iOS 動到原生程式、資源檔或 Info.plist**：改 `pubspec.yaml` 版本，打 tag `v<版本>` → Codemagic `ios-testflight`（Shorebird release）→ TestFlight 內測，並自動送外部測試。
 - 每次結果都由 `.github/workflows/ios-release-report.yml` 用 App Store Connect API 查驗，再留言在 issue「📦 iOS 發布通知」。外部 Beta 審查結果由每小時的 `testflight-external-watch.yml` 通知。

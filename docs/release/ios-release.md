@@ -202,7 +202,7 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 
 ## Android 下載入口
 
-Android APK 使用獨立的 `android-v<版本>-<build>` tag，下載頁由現有 GitHub Pages 部署。簽章限制、發布方式與 2026-10-10 的驗收證據見 [android-release.md](android-release.md)。不觸發本文件的 iOS `v*`／`patch-*` 流程。
+本機手動發布的 APK 使用獨立的 `android-v<版本>-<build>` tag，不觸發 iOS 流程。另外，`v*` tag 除了觸發 Codemagic `ios-testflight`，也會觸發 GitHub Actions `android-apk.yml` 建 APK 並建立 draft release（需要 Android 簽章 secret）。下載頁由現有 GitHub Pages 部署。簽章限制、發布方式與驗收證據見 [android-release.md](android-release.md)。
 
 ## iOS 桌面小工具（CheerWidget）
 

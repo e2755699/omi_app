@@ -39,7 +39,16 @@
 
 ## 簽章與自動化限制
 
-現有 Gradle release 使用 debug signing config。不要直接搬到每次重新建立 debug key 的雲端 runner：簽章不同會讓已安裝使用者無法覆蓋更新。後續自動化需先由擁有者將固定簽章與密碼放入 CI secret store，再接 GitHub Actions 或既有 Codemagic 的 Android 工作。
+現有 Gradle release 使用 debug signing config。不要直接搬到每次重新建立 debug key 的雲端 runner：簽章不同會讓已安裝使用者無法覆蓋更新。
+
+### CI 自動建置（2026-10-10 加入，尚未實跑）
+
+- `.github/workflows/android-apk.yml`：push `v*` tag（與 iOS TestFlight 同一個 tag）→ analyze／test → 用 `config/supabase.dev.json` 建 APK → 建立 **draft prerelease** 附上 `omi-android.apk`、`SHA256SUMS.txt`。不自動公開、不改下載頁；之後照上面「日常更新」第 3～6 步核對、公開、改 `web/download/index.html`。
+- versionCode 取自 `pubspec.yaml` 的 `+` 後數字（目前 1.2.0+4，大於公開的 2）。
+- `android/app/build.gradle.kts`：有 `ANDROID_KEYSTORE_PATH` 環境變數時用該 keystore 簽章，否則照舊用 debug key（本機建置不受影響）。
+- 需要擁有者放進 GitHub repo secrets：`ANDROID_KEYSTORE_BASE64`（keystore 檔 base64）、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。缺 secret 時 workflow 直接失敗，不會用臨時 key 簽。
+- 2026-10-10 已放入那台 Windows 的 debug keystore：4 個 secret 存在（`gh secret list` 確認），Windows 端 `keytool` 指紋與公開版一致。workflow 尚未實跑。
+- 要讓已安裝 1.1.0 (2) 的人覆蓋更新，放進去的必須是簽出公開 APK 的那把 key（憑證 SHA-256 `74c189f5…f4f7`，那台 Windows 的 debug keystore）；換新 key 的話，舊使用者要先解除安裝，本機資料會遺失。
 
 這次不讀取、輸出或搬移簽章私鑰，也不建立新的簽章。只用 APK 裡的公開憑證核對。使用者更新時先保留舊 App；解除安裝會丟失本機資料。正式簽章與 Google Play 上架另行處理。
 
