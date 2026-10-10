@@ -24,7 +24,8 @@
 - [x] 修正一般 Web 啟動誤判登入回呼、返回網址多出 `?#`；37 項 Flutter 測試通過
 - [x] Chrome 照片上傳：修正 Web 檔名亂數溢位，確認私人 Storage 與 metadata 建立、重開顯示快取照片
 - [x] Android 實機（SM-A1660）Discord 登入：`flutter_web_auth_2` 登入頁自動關閉、狀態切換（記憶體不足被回收時需重按，已接受）
-- [ ] iOS 改 `flutter_web_auth_2` 後的真機登入（需 `v` tag 新版 TestFlight）
+- [x] iOS 真機（本機開發簽章 1.2.1+5）Discord 登入：登入頁自動關閉
+- [ ] iOS TestFlight 1.2.1 版再確認一次登入（Codemagic 建置流程）
 - [ ] Android／iOS 雙裝置實測
 - [x] 帳號／群組隔離的 SQLite 離線佇列、衝突處理、資料匯入與照片同步程式
 - [x] 真實隊友、邀請碼與加油介面；切空間關閉舊編輯頁，登出清除隊友
