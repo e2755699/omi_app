@@ -23,7 +23,9 @@
 - [x] Chrome 真實 Discord 登入、教學草稿返回、群組建立、打卡／私人心得同步及重新載入保留資料
 - [x] 修正一般 Web 啟動誤判登入回呼、返回網址多出 `?#`；37 項 Flutter 測試通過
 - [x] Chrome 照片上傳：修正 Web 檔名亂數溢位，確認私人 Storage 與 metadata 建立、重開顯示快取照片
-- [ ] Android／iOS 登入與雙裝置實測
+- [x] Android 實機（SM-A1660）Discord 登入：`flutter_web_auth_2` 登入頁自動關閉、狀態切換（記憶體不足被回收時需重按，已接受）
+- [ ] iOS 改 `flutter_web_auth_2` 後的真機登入（需 `v` tag 新版 TestFlight）
+- [ ] Android／iOS 雙裝置實測
 - [x] 帳號／群組隔離的 SQLite 離線佇列、衝突處理、資料匯入與照片同步程式
 - [x] 真實隊友、邀請碼與加油介面；切空間關閉舊編輯頁，登出清除隊友
 - [x] Web SQLite／IndexedDB 持久儲存 Chrome 實測
@@ -64,6 +66,24 @@
 | Android 公開新版 | 下載頁仍 1.1.0 (2) | 固定正式簽章、乾淨安裝／升級驗證，再發布雲端 APK |
 
 1.2.0 本輪只發布已完成的功能；以上未完成項目保持未勾選，不能把建置成功當成功能驗收。
+
+## GitHub Pages 搬家／改自訂網域時要改的網址（2026-10-10 記錄）
+
+擁有者想用自己的網域指向 Pages，之後搬家只換 DNS；目前還沒有網域。屆時對外只公開自訂網域，下列全部換掉。
+
+- Repo 內（`git grep -n "github\.io"` 可重查）：
+  - `.github/workflows/pages.yml` 第 34–38 行：自訂網域在根目錄，`--base-href` 要從 `/omi_app/` 改成 `/`，否則整站壞掉
+  - `README.md` 第 9、11、80 行：網頁版、APK 下載頁、隱私權政策
+  - `docs/release/android-release.md` 第 5–6 行；`docs/release/app-store-listing.md` 第 15 行；`docs/release/ios-release.md` 第 134 行；`docs/session-handoff.md` 第 19 行
+  - `tool/release/config.json` 第 14 行 `privacy_policy_url`
+  - `supabase/README.md` 第 54 行（allow list 說明）
+  - `test/account_controller_test.dart` 第 32–33 行：測試資料用的 Pages 子目錄，改根目錄後同步調整
+- Repo 外（擁有者本人或在已登入的後台操作）：
+  - GitHub repo Settings → Pages：Custom domain＋Enforce HTTPS（`build_type: workflow`，不需要 `CNAME` 檔）
+  - DNS：`CNAME <子網域> → e2755699.github.io`，先 DNS only 讓 GitHub 簽憑證
+  - Supabase Auth → URL Configuration：Site URL（目前是 `http://127.0.0.1:5173/`，手機上打不開）與 Redirect URLs 加新網域
+  - App Store Connect：隱私權政策網址（及之後的支援網址）
+  - 已發到 Discord 社群的下載頁連結：GitHub 會把舊 `github.io/omi_app/` 轉到自訂網域，但離開 GitHub Pages 後舊網址就失效，搬家前要先換成自訂網域
 
 ## 之後發想
 
