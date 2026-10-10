@@ -143,6 +143,8 @@
 - [x] Codemagic → TestFlight 管線：1.0.0 (1) 已內測可用、已送外部 Beta 審查（2026-10-06）
 - [x] Shorebird 已啟用，1.0.0 (2)／1.1.0 (3) 完整發布成功
 - [ ] Shorebird patch 真實發布驗收（程式與模擬測試已有）
+- [ ] TestFlight 意見自動開 issue 實跑驗收：合併後第一次排程確認 ASC 金鑰讀得到 feedback 端點，「按鈕做壞了」（教學第 9 步）有開成 issue
+- [ ] 教學第 9 步照片按鈕回報「做壞了」（TestFlight 1.2.0 (4) 測試者意見）
 - [x] Bundle ID `com.jacklope.omiApp`、App Store Connect App、內部群組、Codemagic App（2026-10-06）
 - [x] 外部測試自動送審＋審查結果通知、隱私權政策頁（1.1.0 (3) 已全自動實跑）
 - [x] TestFlight 測試資訊（含回饋信箱、審查聯絡人）

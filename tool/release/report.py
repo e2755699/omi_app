@@ -6,6 +6,7 @@
   CODEMAGIC_BUILD_URL，以及 GitHub Actions 內建的 GITHUB_TOKEN / GITHUB_REPOSITORY / GITHUB_RUN_ID 等。
 
   python tool/release/report.py --result-file release-result.json --status-file final-status.txt
+  python tool/release/report.py --feedback feedback.json   # 每則 TestFlight 意見開一個 issue
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ from pathlib import Path
 
 LABEL = "ios-release"
 ISSUE_TITLE = "📦 iOS 發布通知"
+FEEDBACK_LABEL = "testflight-feedback"
+FEEDBACK_MARKER = re.compile(r"<!-- testflight-feedback id=([^ ]+) -->")
 
 PHASE_TEXT = {
     "setup": "環境準備",
@@ -82,6 +85,32 @@ def compose_external(env: dict, event: dict) -> tuple[str, str]:
         "", f"@{owner}" if owner else "", f"<!-- ios-release-report key={key} -->",
     ]
     return key, "\n".join(lines).strip() + "\n"
+
+
+def quote_untrusted(text: str) -> str:
+    """測試者寫的字放進公開 issue：不讓它 @ 人、不讓它塞 HTML 註解（假冒去重標記）。"""
+    text = text.replace("<", "&lt;").replace("@", "@\u200b").strip() or "（沒有文字）"
+    return "\n".join(f"> {line}" for line in text.splitlines())
+
+
+def compose_feedback(item: dict, release_issue: int) -> tuple[str, str]:
+    """回傳（標題, 內文）。只用 feedback-watch 白名單內的欄位。"""
+    first = (item.get("comment") or "").strip().splitlines()[:1] or ["（沒有文字）"]
+    summary = first[0].replace("@", "@\u200b")[:40]
+    title = f"🐞 TestFlight 意見：{summary}（build {item.get('build_number', '?')}）"
+    # ponytail: links to the app's TestFlight page; per-feedback deep link unverified
+    asc_url = f"https://appstoreconnect.apple.com/apps/{item.get('app_id', '')}/testflight/ios"
+    lines = [
+        quote_untrusted(item.get("comment") or ""), "",
+        "| 項目 | 內容 |", "| --- | --- |",
+        f"| build | {item.get('build_number', '?')} |",
+        f"| 裝置 | {item.get('device', '?')}（iOS {item.get('os', '?')}） |",
+        f"| 時間 (UTC) | {item.get('created', '?')} |",
+        f"| 截圖與測試者 | App Store Connect → TestFlight → 意見回饋（{asc_url}），不貼在公開 repo |",
+        f"| 相關發布 | #{release_issue} |",
+        "", f"<!-- testflight-feedback id={item['id']} -->",
+    ]
+    return title, "\n".join(lines) + "\n"
 
 
 def final_status(outcome: str, result: dict | None) -> str:
@@ -186,6 +215,18 @@ class GitHub:
         })
         return issue["number"]
 
+    def ensure_label(self, name: str, color: str, description: str) -> None:
+        try:
+            self.call("POST", "/labels", {"name": name, "color": color, "description": description})
+        except urllib.error.HTTPError as error:
+            if error.code != 422:  # 422 = 標籤已存在
+                raise
+
+    def feedback_ids(self) -> set[str]:
+        # ponytail: first 100 issues only; paginate if feedback ever exceeds that
+        issues = self.call("GET", f"/issues?state=all&labels={FEEDBACK_LABEL}&per_page=100")
+        return {m for i in issues or [] for m in FEEDBACK_MARKER.findall(i.get("body") or "")}
+
     def already_posted(self, number: int, key: str) -> bool:
         marker = f"<!-- ios-release-report key={key} -->"
         comments = self.call("GET", f"/issues/{number}/comments?per_page=100&sort=created&direction=desc")
@@ -209,17 +250,41 @@ def post_external_events(env: dict, path: Path, dry_run: bool) -> int:
     return 0
 
 
+def post_feedback(env: dict, path: Path, dry_run: bool) -> int:
+    items = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    if not items:
+        print("沒有新的 TestFlight 意見")
+        return 0
+    github = None if dry_run else GitHub(env["GITHUB_TOKEN"], env["GITHUB_REPOSITORY"])
+    release_issue = github.notification_issue() if github else 0
+    seen = github.feedback_ids() if github else set()
+    if github:
+        github.ensure_label(FEEDBACK_LABEL, "d73a4a", "TestFlight 測試者意見")
+    for item in items:
+        if item["id"] in seen:
+            continue
+        title, body = compose_feedback(item, release_issue)
+        print(title, body, sep="\n")
+        if github:
+            issue = github.call("POST", "/issues", {"title": title, "body": body, "labels": [FEEDBACK_LABEL]})
+            print(f"已開 issue #{issue['number']}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--result-file", default="release-result.json")
     parser.add_argument("--status-file", help="把整體結果（ready/failed/unknown）寫到這裡")
     parser.add_argument("--external-events", help="external-watch 的事件 JSON：每個事件各留一則（已留過的略過）")
+    parser.add_argument("--feedback", help="feedback-watch 的意見 JSON：每則新意見開一個 issue（已開過的略過）")
     parser.add_argument("--dry-run", action="store_true", help="只印出留言，不呼叫 GitHub")
     args = parser.parse_args(argv)
 
     env = dict(os.environ)
     if args.external_events:
         return post_external_events(env, Path(args.external_events), args.dry_run)
+    if args.feedback:
+        return post_feedback(env, Path(args.feedback), args.dry_run)
     for name, pattern in (("VERSION", r"[0-9]+\.[0-9]+\.[0-9]+"), ("BUILD_NUMBER", r"[0-9]+"), ("PATCH_NUMBER", r"[0-9]+"),
                           ("SOURCE_COMMIT", r"[0-9a-f]{7,40}")):
         if env.get(name) and not re.fullmatch(pattern, env[name]):

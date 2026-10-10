@@ -70,6 +70,10 @@ GitHub Actions：testflight-external-watch.yml（每小時）
   - asc.py external-watch：最近 build 的 externalBuildState
       IN_BETA_TESTING / BETA_APPROVED → 🎉 外部測試可用；BETA_REJECTED → ❌；送審超過 72 小時 → ❓
   - 同一結果只留言一次；公開連結不貼在公開 repo
+  - asc.py feedback-watch：最近 7 天的 TestFlight 截圖意見，只請求 comment／createdDate／deviceModel／osVersion／build
+      → report.py --feedback：每則新意見開一個 issue（label testflight-feedback，連回「📦 iOS 發布通知」）
+      測試者 email 與截圖不向 Apple 要、不進公開 repo；去重靠 issue 內文的 `<!-- testflight-feedback id=… -->`（含已關閉的 issue）
+      讀不到意見（權限等）只記 warning，不影響審查通知
 ```
 
 內測結果：`ready`（API 證實可用）、`failed`（Apple 明確拒絕或 CI 失敗沒上傳）、`unknown`（授權、網路、逾時、找不到 build）。外部測試另外標示：`submitted`、`ready`、`failed`、`blocked`（多半是測試資訊沒填齊，不會重送）。外部有問題不會蓋掉內測結果。patch 的成功依據是 Shorebird CLI 回報「Published Patch N」。
@@ -183,6 +187,7 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | 預檢、品質檢查（analyze／test／發布工具測試） | **真實雲端實跑通過** | build #1：預檢 6 秒、品質檢查 46 秒 |
 | 外部測試：What to Test、加群組、送審（不重送） | **真實實跑：已送審**（`WAITING_FOR_BETA_REVIEW`）；審查結果待 Apple | 同上 Actions run 的 `external` 欄位；模擬：`ExternalTest.*` |
 | 外部審查結果通知（每小時排程） | 已配置；排程空跑實跑通過；真實結果待審查完成 | `testflight-external-watch.yml` |
+| TestFlight 意見 → 開 issue（白名單欄位、去重、中和 @ 與假標記） | 模擬通過；**未實跑**（ASC 金鑰能否讀 feedback 端點待第一次排程確認） | `FeedbackTest.*` |
 | 外部測試資料不齊 → blocked、不重送 | 模擬通過 | `test_missing_test_info_is_blocked_and_not_retried` |
 | 外部問題不蓋掉內測 ready | 模擬通過 | `test_external_problem_does_not_override_internal_ready` |
 | 審查結果通知（通過／被拒／逾時，去重） | 模擬通過 | `test_watch_events` |

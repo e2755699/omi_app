@@ -1,6 +1,8 @@
 # 每小時看一次最近送 Beta 審查的 build：通過、被拒、或超過 72 小時沒結果，就在「📦 iOS 發布通知」issue 留言。
 # 沒有 build 在審查中時，把最新還沒送審的 build 補送外部測試（Apple 同版本一次只收一個審查）。
 # 同一個結果只留一次（留言裡有去重標記）；沒有送審中的 build 時幾秒就結束。
+# 另外把最近 7 天的 TestFlight 截圖意見各開一個 issue（label testflight-feedback）；只帶意見文字、build、裝置，
+# 測試者 email 與截圖不出 Apple（公開 repo），要看請到 App Store Connect。
 # 公開連結不會貼出來（這是公開 repo），請到 App Store Connect → TestFlight → 外部測試群組拿。
 name: TestFlight external review watch
 
@@ -49,3 +51,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python tool/release/report.py --external-events external-events.json
+
+      - name: 查 TestFlight 意見
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
+            echo "還沒設定 App Store Connect secrets，略過"
+            exit 0
+          fi
+          python tool/release/asc.py feedback-watch --max-age-days 7 --out feedback.json
+
+      - name: 意見開 issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python tool/release/report.py --feedback feedback.json
