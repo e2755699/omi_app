@@ -38,6 +38,9 @@ jobs:
           if [[ "$REPO" == *.github.io ]]; then BASE="/"; else BASE="/$REPO/"; fi
           flutter build web --release --base-href "$BASE"
 
+      - name: Verify download page is included
+        run: test -s build/web/download/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
