@@ -182,6 +182,10 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 
 待補：擁有者確認收到通知信；1.1.0 的 Beta 審查結果與外部通知；真機上小工具與選照片的驗收。
 
+## Android 下載入口
+
+Android APK 使用獨立的 `android-v<版本>-<build>` tag，下載頁由現有 GitHub Pages 部署。簽章限制、發布方式與 2026-10-10 的驗收證據見 [android-release.md](android-release.md)。不觸發本文件的 iOS `v*`／`patch-*` 流程。
+
 ## iOS 桌面小工具（CheerWidget）
 
 - 兩個 target 簽章：`com.jacklope.omiApp`（App）與 `com.jacklope.omiApp.CheerWidget`（WidgetKit 擴充），都有 App Group `group.com.jacklope.omiApp` 的 entitlement（`ios/Runner/Runner.entitlements`、`ios/CheerWidget/CheerWidget.entitlements`）。
