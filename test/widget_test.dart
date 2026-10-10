@@ -215,7 +215,7 @@ void main() {
       expect(_pixelText('STEP 11/11'), findsOneWidget);
       expect(find.text('使用 Discord 登入'), findsOneWidget);
       expect(store.isSetUp, isFalse);
-      await _tapText(tester, '先在本機使用');
+      await _tapText(tester, '我先自己走');
 
       expect(store.isSetUp, isTrue);
       expect(store.profile.name, '阿明');
@@ -310,7 +310,7 @@ void main() {
       expect(_pixelText('STEP 11/11'), findsOneWidget);
       expect(reloaded.profile.name, '阿明');
       expect(reloaded.profile.nourishChoice, {'produce', 'water'});
-      await _tapText(tester, '先在本機使用');
+      await _tapText(tester, '我先自己走');
       expect(reloaded.entryOn(itemById('noticed'), reloaded.today).notes, ['今天先走一小步']);
       expect(reloaded.pendingAccountStep, isFalse);
       expect(reloaded.setupNoticedDraft, isEmpty);

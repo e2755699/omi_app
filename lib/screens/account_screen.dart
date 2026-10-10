@@ -79,19 +79,21 @@ class _AccountPanelState extends State<AccountPanel> {
         children: [
           const SectionTitle(tag: 'ACCOUNT', title: '用你喜歡的方式開始'),
           const SizedBox(height: 16),
-          const GuideBubble(text: '先自己走，也很好。\n不登入也可以打卡、寫心得、留下照片，紀錄會存在這台裝置。'),
-          const SizedBox(height: 20),
-          const PixelBox(
-            padding: EdgeInsets.all(16),
-            child: Text('本機使用時看不到其他玩家。\n之後想和夥伴一起，再從首頁登入。', style: TextStyle(height: 1.6)),
-          ),
-          const SizedBox(height: 20),
           if (account.isSignedIn) ...[
+            const GuideBubble(text: '歡迎上車！🎉\n接下來到「帳號與資料」開一個小隊，或用邀請碼找到你的夥伴，一起互相加油。'),
+            const SizedBox(height: 20),
             const Text('Discord 已登入 ✓', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            const Text('登入後可從「帳號與資料」建立或加入群組。\n原本的本機紀錄，只有你選擇帶入時才會上傳。'),
+            const Text('之前留在這台裝置的紀錄，要等你點頭帶過去才會上傳。'),
             TextButton(onPressed: account.busy ? null : account.signOut, child: const Text('登出 Discord')),
           ] else ...[
+            const GuideBubble(text: '想一個人慢慢走，或找夥伴一起走，都很好。\n先不登入也能打卡、寫心得、留下照片，紀錄會好好收在這台裝置裡。'),
+            const SizedBox(height: 20),
+            const PixelBox(
+              padding: EdgeInsets.all(16),
+              child: Text('登入 Discord，就能和夥伴組隊、互相加油。\n現在還不想決定也沒關係，之後隨時能從首頁回來找我。', style: TextStyle(height: 1.6)),
+            ),
+            const SizedBox(height: 20),
             SizedBox(
               height: 64,
               child: Keycap(
@@ -105,12 +107,17 @@ class _AccountPanelState extends State<AccountPanel> {
             ),
             if (!account.configured) ...[
               const SizedBox(height: 10),
-              const Text('Discord 登入準備中，現在可以先在本機使用。', style: TextStyle(color: PixelColors.muted)),
+              const Text('Discord 登入還在準備中，先自己走走，之後再來找夥伴。', style: TextStyle(color: PixelColors.muted)),
             ],
           ],
           if (_error ?? account.message case final String message) ...[
-            const SizedBox(height: 12),
-            Text(message, style: const TextStyle(color: PixelColors.muted)),
+            const SizedBox(height: 16),
+            PixelBox(
+              color: PixelColors.sand,
+              depth: 3,
+              padding: const EdgeInsets.all(14),
+              child: Text(message, style: const TextStyle(height: 1.6, fontWeight: FontWeight.w700)),
+            ),
           ],
         ],
       );

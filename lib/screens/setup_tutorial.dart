@@ -28,7 +28,7 @@ const _pillarIntro = {
 /// Jimmy 給的每日心得例子：教學裡可以點一下直接填進去。
 const _noticedExamples = ['今天忘記閱讀', '太忙了沒有跑步', '感冒所以喝很多水', '早上運動比較簡單'];
 
-/// [_Step.intro] 是 STEP 0 的標題畫面，最後一步可登入或先在本機使用。
+/// [_Step.intro] 是 STEP 0 的標題畫面，最後一步可登入找夥伴，或先自己走。
 enum _Step { intro, welcome, player, start, move, nourish, learn, recover, reflect, plan, ready, account }
 
 /// 設定教學：嚮導一步一步介紹規則，邊介紹邊完成個人設定，最後產生自己的儀表板。
@@ -218,10 +218,18 @@ class _SetupTutorialState extends State<SetupTutorial> {
               ],
               Expanded(
                 flex: 2,
-                child: _NavKey(
-                  label: _step == _Step.account ? (_store.isCloud ? '儲存群組設定' : '先在本機使用') : '下一步',
-                  primary: true,
-                  onTap: _canContinue && !_saving ? _next : null,
+                child: ListenableBuilder(
+                  listenable: _store.account,
+                  builder: (context, _) => _NavKey(
+                    label: switch (_step) {
+                      _Step.account when _store.isCloud => '儲存群組設定',
+                      _Step.account when _store.account.isSignedIn => '出發吧！',
+                      _Step.account => '我先自己走',
+                      _ => '下一步',
+                    },
+                    primary: true,
+                    onTap: _canContinue && !_saving ? _next : null,
+                  ),
                 ),
               ),
             ],
@@ -732,7 +740,7 @@ const _stepLabels = [
   'REFLECT 反思',
   'WEEK 1 計畫',
   '完成！',
-  '登入或先在本機使用',
+  '找夥伴，或先自己走',
 ];
 
 /// 寬螢幕左邊的步驟清單：做完的打勾、現在這步加粗框。
