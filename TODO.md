@@ -20,6 +20,16 @@
 - [ ] 帳號刪除、資料刪除與雲端隱私政策
 
 設計與目前驗收：[docs/backend/supabase-plan.md](docs/backend/supabase-plan.md)。
+## Android 下載入口（2026-10-10）
+
+- [x] 像素風 `/download/` 頁面：版本、下載、網頁版、安裝教學、資料保存提醒
+- [x] Pages 建置加入下載頁存在檢查
+- [x] `android-v1.1.0-2` APK 上傳、公開下載驗證（重新下載 SHA-256 一致）
+- [ ] 擁有者確認合併下載頁至 `master`，驗證 Pages 公開網址
+- [ ] 乾淨安裝與覆蓋舊版的 Android 真機驗收
+- [ ] 後續 APK 自動建置發布：先將固定 Android 簽章納入 secret store
+
+發布方式、限制與證據：[Android 發布](docs/release/android-release.md)。
 
 ## 之後發想
 
