@@ -199,16 +199,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
             _weeklySection(),
             const SizedBox(height: 26),
             // 像空白鍵一樣的長鍵帽。
-            SizedBox(
-              height: 64,
-              child: Keycap(
-                onTap: _finish,
-                faceColor: PixelColors.yellow,
-                child: const Center(
-                  child: Text('完成打卡 ✓', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                ),
-              ),
-            ),
+            KeycapButton(primary: true, height: 64, fontSize: 17, label: '完成打卡 ✓', onTap: _finish),
           ];
 
           const padding = EdgeInsets.fromLTRB(16, 16, 16, 32);
@@ -472,16 +463,7 @@ class _AmountSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 18),
-              SizedBox(
-                height: 58,
-                child: Keycap(
-                  faceColor: PixelColors.yellow,
-                  onTap: () => Navigator.of(context).pop(),
-                  child: const Center(
-                    child: Text('好了', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ),
+              KeycapButton(primary: true, label: '好了', onTap: () => Navigator.of(context).pop()),
             ],
           ),
         );

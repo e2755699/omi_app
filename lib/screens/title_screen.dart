@@ -169,19 +169,17 @@ class TitleScreen extends StatelessWidget {
       ];
 
   Widget _startKey() {
-    return SizedBox(
+    return KeycapButton(
+      primary: true,
       height: 64,
-      child: Keycap(
-        faceColor: PixelColors.yellow,
-        onTap: onStart,
-        child: const Row(
+      onTap: onStart,
+      child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('開始挑戰', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             SizedBox(width: 10),
             PixelText('>', dot: 3),
           ],
-        ),
       ),
     );
   }

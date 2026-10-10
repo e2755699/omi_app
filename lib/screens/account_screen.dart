@@ -94,16 +94,11 @@ class _AccountPanelState extends State<AccountPanel> {
               child: Text('登入 Discord，就能和夥伴組隊、互相加油。\n現在還不想決定也沒關係，之後隨時能從首頁回來找我。', style: TextStyle(height: 1.6)),
             ),
             const SizedBox(height: 20),
-            SizedBox(
+            KeycapButton(
+              primary: true,
               height: 64,
-              child: Keycap(
-                onTap: account.configured && !account.busy && !_saving ? _login : null,
-                color: PixelColors.yellow,
-                child: Text(
-                  account.busy || _saving ? '正在開啟登入…' : '使用 Discord 登入',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-              ),
+              label: account.busy || _saving ? '正在開啟登入…' : '使用 Discord 登入',
+              onTap: account.configured && !account.busy && !_saving ? _login : null,
             ),
             if (!account.configured) ...[
               const SizedBox(height: 10),

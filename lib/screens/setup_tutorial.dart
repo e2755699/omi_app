@@ -212,7 +212,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
             children: [
               if (index > 0) ...[
                 Expanded(
-                  child: _NavKey(label: '上一步', onTap: _back),
+                  child: KeycapButton(label: '上一步', onTap: _back),
                 ),
                 const SizedBox(width: 12),
               ],
@@ -220,7 +220,7 @@ class _SetupTutorialState extends State<SetupTutorial> {
                 flex: 2,
                 child: ListenableBuilder(
                   listenable: _store.account,
-                  builder: (context, _) => _NavKey(
+                  builder: (context, _) => KeycapButton(
                     label: switch (_step) {
                       _Step.account when _store.isCloud => '儲存群組設定',
                       _Step.account when _store.account.isSignedIn => '出發吧！',
@@ -808,35 +808,6 @@ class _StepSidebar extends StatelessWidget {
   }
 }
 
-class _NavKey extends StatelessWidget {
-  const _NavKey({required this.label, required this.onTap, this.primary = false});
-
-  final String label;
-  final VoidCallback? onTap;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 60,
-      child: Keycap(
-        onTap: onTap,
-        faceColor: primary ? PixelColors.yellow : const Color(0xFFFFFBF0),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: onTap == null ? PixelColors.muted : PixelColors.ink,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _RuleCard extends StatelessWidget {
   const _RuleCard({required this.item, this.target});
 
@@ -1005,16 +976,7 @@ class _PixelTimeSheetState extends State<_PixelTimeSheet> {
             ],
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            height: 58,
-            child: Keycap(
-              faceColor: PixelColors.yellow,
-              onTap: () => Navigator.of(context).pop(_minutes),
-              child: const Center(
-                child: Text('好了', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-              ),
-            ),
-          ),
+          KeycapButton(primary: true, label: '好了', onTap: () => Navigator.of(context).pop(_minutes)),
         ],
       ),
     );
@@ -1088,33 +1050,7 @@ class _PhotoPreview extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 54,
-                child: Keycap(
-                  onTap: () {},
-                  child: const Center(
-                    child: Text('🖼️ 從相簿選', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SizedBox(
-                height: 54,
-                child: Keycap(
-                  onTap: () {},
-                  child: const Center(
-                    child: Text('📸 拍一張', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        KeycapButton(label: '📷 選照片', onTap: () {}),
       ],
     );
   }
