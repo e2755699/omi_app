@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../data/challenge_store.dart';
 import '../data/sync/local_sync_database.dart';
 import '../models/challenge.dart';
+import '../models/rules.dart';
 import '../widgets/pixel_ui.dart';
 import '../widgets/section_title.dart';
 
@@ -129,29 +130,29 @@ class _GroupPanelState extends State<GroupPanel> {
                 children: [
                   Text(cloud.group['name'] as String, style: const TextStyle(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 8),
-                  Text('待同步 ${cloud.engine.pending} 筆 · 需要確認 ${cloud.engine.conflicts} 筆'),
-                  const Text('群組日期以台北時間計算。離線時仍可記錄，重新開啟 App 或按同步後更新。'),
+                  Text('還沒同步到帳號 ${cloud.engine.pending} 筆 · 等你選版本 ${cloud.engine.conflicts} 筆'),
+                  const Text('群組日期以台北時間計算。沒網路時也能記錄，連上網路後重新開啟 App 或按「立即同步」就會補上。'),
                   if (cloud.engine.error ?? cloud.message case final String error) Text(error),
                   Wrap(
                     spacing: 8,
                     children: [
-                      TextButton(onPressed: _busy ? null : () => _run(cloud.refresh), child: const Text('同步／更新隊友')),
+                      TextButton(onPressed: _busy ? null : () => _run(cloud.refresh), child: const Text('立即同步')),
                       TextButton(
                         onPressed: _busy
                             ? null
                             : () => _run(() async {
                                 if (!await _confirm(
-                                  '帶入本機紀錄？',
-                                  '會將符合群組日期的打卡、私人心得、設定和照片帶入目前帳號。心得只給自己看，照片可供同組成員查看。已有雲端紀錄不會覆蓋，本機原稿會保留。',
+                                  '把這台裝置的紀錄存到帳號？',
+                                  '會把符合群組日期的打卡、私人心得、設定和照片存到你的帳號。心得只有你看得到，照片同組成員看得到。帳號裡已經有的紀錄不會被蓋掉，這台裝置上原本的紀錄也會留著。',
                                 )) {
                                   return;
                                 }
                                 if (!mounted || store.cloud != cloud || !cloud.remote.authorized) return;
                                 await store.importLocalRecords();
                               }),
-                        child: const Text('帶入本機紀錄'),
+                        child: const Text('把這台裝置的紀錄存到帳號'),
                       ),
-                      TextButton(onPressed: _busy ? null : () => _run(store.useLocal), child: const Text('切回本機使用')),
+                      TextButton(onPressed: _busy ? null : () => _run(store.useLocal), child: const Text('改回只存在這台裝置')),
                     ],
                   ),
                   if (cloud.group['owner_id'] == store.account.userId)
@@ -179,7 +180,7 @@ class _GroupPanelState extends State<GroupPanel> {
                     onPressed: _busy
                         ? null
                         : () => _run(() async {
-                            if (!await _confirm('離開這個群組？', '離開後彼此看不到進度。雲端紀錄會保留，使用有效邀請碼重新加入即可繼續。')) return;
+                            if (!await _confirm('離開這個群組？', '離開後彼此看不到進度。你的紀錄會留在帳號裡，使用有效邀請碼重新加入即可繼續。')) return;
                             if (!mounted || store.cloud != cloud || !cloud.remote.authorized) return;
                             await store.account.client!.rpc(
                               'leave_challenge_group',
@@ -202,9 +203,9 @@ class _GroupPanelState extends State<GroupPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('兩台裝置都有修改 · ${record.key}'),
-                      Text('這台裝置：${_describe(record.data)}'),
-                      Text('雲端：${_describe(Map<String, dynamic>.from(record.conflict!['data'] as Map))}'),
+                      Text('兩台裝置都有修改 · ${_recordLabel(record)}'),
+                      Text('這台裝置的版本：${_describe(record.data)}'),
+                      Text('帳號裡的版本：${_describe(Map<String, dynamic>.from(record.conflict!['data'] as Map))}'),
                       Wrap(
                         children: [
                           for (final useLocal in [true, false])
@@ -216,7 +217,7 @@ class _GroupPanelState extends State<GroupPanel> {
                                       await cloud.readLocal();
                                       await cloud.refresh();
                                     }),
-                              child: Text(useLocal ? '保留這台裝置' : '採用雲端'),
+                              child: Text(useLocal ? '用這台裝置的版本' : '用帳號裡的版本'),
                             ),
                         ],
                       ),
@@ -260,6 +261,17 @@ class _GroupPanelState extends State<GroupPanel> {
       );
     },
   );
+
+  /// Turns a sync record key (`2026-10-12|workout`, `2026-10-12`, `self`) into a
+  /// label the owner recognises; the raw key is for storage, not for people.
+  String _recordLabel(SyncRecord record) {
+    if (record.table == 'profiles') return '個人設定';
+    final parts = record.key.split('|');
+    final day = parseDateKey(parts.first);
+    final date = '${day.month}/${day.day}';
+    if (record.table == 'weekly_photos') return '$date 那週的照片';
+    return '$date 的${itemById(parts.last).title}';
+  }
 
   String _describe(Json data) {
     if (data.containsKey('object_path')) return data['object_path'] == null ? '移除照片' : '保留照片';
