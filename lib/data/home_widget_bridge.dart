@@ -35,6 +35,7 @@ Future<void> homeWidgetInteraction(Uri? uri) async {
 
   // 背景和 App 是不同的 isolate，先重新讀本機資料，才不會蓋掉 App 裡的紀錄。
   await (await SharedPreferences.getInstance()).reload();
+  if ((await SharedPreferences.getInstance()).getBool('cloud.widgetOpenApp') ?? false) return;
   final store = await ChallengeStore.load();
   if (!store.isSetUp || store.phase != ChallengePhase.ongoing) return;
   await store.quickToggle(item);
@@ -47,7 +48,8 @@ Future<void> syncHomeWidget(ChallengeStore store) async {
   final phase = store.phase;
   final summary = store.summary;
   final cheers = store.cheersFor(store.me.id);
-  final enabled = store.isSetUp && phase == ChallengePhase.ongoing;
+  final enabled = store.isSetUp && !store.isCloud && phase == ChallengePhase.ongoing;
+  await (await SharedPreferences.getInstance()).setBool('cloud.widgetOpenApp', store.isCloud);
   final keys = [
     for (final item in store.items)
       if (item.pillar != Pillar.reflect) item,
@@ -60,25 +62,26 @@ Future<void> syncHomeWidget(ChallengeStore store) async {
       ChallengePhase.ongoing => 'DAY ${challenge.dayNumber(store.today)}/${challenge.totalDays}',
       ChallengePhase.finished => 'CLEAR!',
     },
-    'cheers_text': !enabled
+    'cheers_text': !enabled || cheers == 0
         ? ''
         : summary.todayComplete
-            ? '🎉 $cheers 人幫你慶祝'
-            : '📣 $cheers 人幫你加油',
+        ? '🎉 $cheers 人幫你慶祝'
+        : '📣 $cheers 人幫你加油',
     'keys_enabled': enabled ? '1' : '0',
-    'message_text': !store.isSetUp
+    'message_text': store.isCloud
+        ? '打開 App 記錄與同步群組'
+        : !store.isSetUp
         ? '打開 App 完成設定'
         : phase == ChallengePhase.notStarted
-            ? '${formatShortDate(challenge.start)} 開始打卡，準備好了嗎？'
-            : '挑戰完成 🎉 辛苦了！',
+        ? '${formatShortDate(challenge.start)} 開始打卡，準備好了嗎？'
+        : '挑戰完成 🎉 辛苦了！',
     'footer_text': enabled ? '今天 $done/${keys.length} 項 · ✏️ 寫 Reflect ›' : '打開 App ›',
     'key_count': '${keys.length}',
     for (final (i, item) in keys.indexed) ...{
       'key_${i}_id': item.id,
       'key_${i}_pillar': item.pillar.name,
       'key_${i}_on': store.entryOn(item, store.today).isDone ? '1' : '0',
-      'key_${i}_label':
-          '${item.emoji}\n${store.entryOn(item, store.today).isDone ? '✓' : ''}${item.shortTitle}',
+      'key_${i}_label': '${item.emoji}\n${store.entryOn(item, store.today).isDone ? '✓' : ''}${item.shortTitle}',
     },
   };
 
@@ -103,8 +106,7 @@ class HomeWidgetBridge {
   Timer? _debounce;
 
   static bool get supported =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+      !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
 
   Future<void> start() async {
     if (!supported) return;
@@ -112,7 +114,6 @@ class HomeWidgetBridge {
     await HomeWidget.registerInteractivityCallback(homeWidgetInteraction);
     store.addListener(_scheduleSync);
     // 會自己掛在 WidgetsBinding 上，整個 App 期間都有效。
-    AppLifecycleListener(onResume: store.reload);
     HomeWidget.widgetClicked.listen(_open);
     await syncHomeWidget(store);
     _open(await HomeWidget.initiallyLaunchedFromHomeWidget());

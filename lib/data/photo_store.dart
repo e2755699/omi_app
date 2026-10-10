@@ -11,6 +11,20 @@ import 'package:path_provider/path_provider.dart';
 abstract final class PhotoStore {
   static final _picker = ImagePicker();
 
+  static Future<Uint8List> read(String ref) async {
+    if (ref.startsWith('data:')) return base64Decode(ref.substring(ref.indexOf(',') + 1));
+    if (kIsWeb || ref.startsWith('https:')) throw StateError('找不到本機照片');
+    return File(ref).readAsBytes();
+  }
+
+  /// 匯入雲端工作區時複製檔案，訪客之後換照片不會刪掉待上傳原稿。
+  static Future<String> copyForCloud(String ref) async {
+    if (kIsWeb || ref.startsWith('data:')) return ref;
+    final source = File(ref);
+    final copy = await source.copy('${source.path}.cloud-${DateTime.now().microsecondsSinceEpoch}.jpg');
+    return copy.path;
+  }
+
   /// 讓使用者從相簿選或拍一張，存起來後回傳參照；取消就回傳 null。
   static Future<String?> pick({required ImageSource source, required String key}) async {
     final picked = await _picker.pickImage(source: source, maxWidth: 1280, maxHeight: 1280, imageQuality: 80);
@@ -38,6 +52,7 @@ abstract final class PhotoStore {
 
   static ImageProvider? image(String? ref) {
     if (ref == null || ref.isEmpty) return null;
+    if (ref.startsWith('https://')) return NetworkImage(ref);
     if (ref.startsWith('data:')) {
       final comma = ref.indexOf(',');
       if (comma < 0) return null;

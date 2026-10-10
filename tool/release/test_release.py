@@ -19,6 +19,34 @@ import report  # noqa: E402
 APP, GROUP, BUILD = "app1", "group1", "build1"
 
 
+class BetaMetadataTest(unittest.TestCase):
+    def test_update_only_public_copy_preserves_contacts(self):
+        client = mock.Mock()
+        client.get_all.return_value = [{"id": "loc", "attributes": {"locale": "zh-Hant", "feedbackEmail": "keep@example.test"}}]
+        client.get.return_value = {"data": {"id": "review", "attributes": {"contactEmail": "keep@example.test"}}}
+        asc.sync_beta_metadata(client, APP, asc.CONFIG)
+        writes = client.patch.call_args_list
+        self.assertEqual(len(writes), 2)
+        self.assertEqual(set(writes[0].args[1]["data"]["attributes"]), {"description", "privacyPolicyUrl"})
+        self.assertEqual(set(writes[1].args[1]["data"]["attributes"]), {"notes"})
+
+    def test_current_copy_does_not_write(self):
+        client = mock.Mock()
+        client.get_all.return_value = [{"id": "loc", "attributes": {
+            "locale": asc.CONFIG["beta_locale"], "description": asc.CONFIG["beta_description"],
+            "privacyPolicyUrl": asc.CONFIG["privacy_policy_url"]}}]
+        client.get.return_value = {"data": {"id": "review", "attributes": {"notes": asc.CONFIG["beta_review_notes"]}}}
+        asc.sync_beta_metadata(client, APP, asc.CONFIG)
+        client.patch.assert_not_called()
+
+    def test_missing_locale_stops_without_writes(self):
+        client = mock.Mock()
+        client.get_all.return_value = []
+        with self.assertRaises(asc.ApiError):
+            asc.sync_beta_metadata(client, APP, asc.CONFIG)
+        client.patch.assert_not_called()
+
+
 class FakeClient:
     """每次查 /v1/builds 就往下一個狀態走（停在最後一個）。"""
 

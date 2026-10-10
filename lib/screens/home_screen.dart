@@ -18,6 +18,7 @@ import 'player_screen.dart';
 import 'setup_tutorial.dart';
 import 'weekly_screen.dart';
 import 'widget_preview_screen.dart';
+import 'account_screen.dart';
 
 /// 首頁：挑戰進度 → 各項挑戰的能量槽 → 每日打卡 → 本週任務 → 大家的進度。
 class HomeScreen extends StatelessWidget {
@@ -25,8 +26,16 @@ class HomeScreen extends StatelessWidget {
 
   final ChallengeStore store;
 
-  void _cheer(BuildContext context, Player player, WeekSummary summary) {
-    store.cheer(player.id);
+  Future<void> _cheer(BuildContext context, Player player, WeekSummary summary) async {
+    try {
+      await store.cheer(player.id);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('加油還沒送出，請確認連線後再試一次。')));
+      }
+      return;
+    }
+    if (!context.mounted) return;
     final name = player.profile.name;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -41,7 +50,7 @@ class HomeScreen extends StatelessWidget {
         final challenge = store.challenge;
         final summary = store.summary;
         final players = store.players;
-        final summaries = [for (final player in players) player.summary(challenge, store.today)];
+        final summaries = [for (final player in players) player.summary(store.challengeFor(player), store.today)];
 
         return Scaffold(
           appBar: AppBar(
@@ -61,6 +70,15 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             actions: [
+              IconButton(
+                tooltip: '帳號與資料',
+                icon: const Icon(Icons.account_circle_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AccountScreen(account: store.account, store: store),
+                  ),
+                ),
+              ),
               _DemoMenu(store: store),
               IconButton(
                 tooltip: '重新設定',
@@ -186,6 +204,34 @@ class HomeScreen extends StatelessWidget {
 
   /// 大家的進度＋Demo 說明。
   List<Widget> _playerSlivers(BuildContext context, List<Player> players, List<WeekSummary> summaries) {
+    if (players.length <= 1) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          sliver: SliverToBoxAdapter(
+            child: PixelBox(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(store.isCloud ? '群組已連接' : '紀錄保存在這台裝置', style: TextStyle(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 6),
+                  Text(store.isCloud ? '可從帳號與資料更新隊友、查看同步狀態。' : '想和夥伴一起時，再登入加入群組。'),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => AccountScreen(account: store.account, store: store),
+                      ),
+                    ),
+                    child: const Text('帳號與資料'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
     final completeToday = summaries.where((s) => s.todayComplete).length;
     return [
       SliverPadding(
@@ -398,7 +444,11 @@ class _CheckInCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '🔥 連續記錄 $streak 天',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: PixelColors.muted.withValues(alpha: 0.8)),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: PixelColors.muted.withValues(alpha: 0.8),
+                ),
               ),
             ],
           ],
@@ -463,18 +513,15 @@ class _WeeklyCard extends StatelessWidget {
                 IconButton(
                   tooltip: '照片牆',
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => PhotoWallScreen(store: store)),
-                  ),
+                  onPressed: () =>
+                      Navigator.of(context)
+                          .push(MaterialPageRoute<void>(builder: (_) => PhotoWallScreen(store: store))),
                   icon: const Icon(Icons.grid_view),
                 ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            done ? '本週任務完成 ✓' : '本週任務：回顧三題・一張照片',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-          ),
+          Text(done ? '本週任務完成 ✓' : '本週任務：回顧三題・一張照片', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -584,9 +631,8 @@ class _DemoMenu extends StatelessWidget {
             await _addWidget(context);
           case _DemoAction.widgetPreview:
             if (context.mounted) {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => WidgetPreviewScreen(store: store)),
-              );
+              await Navigator.of(context)
+                  .push(MaterialPageRoute<void>(builder: (_) => WidgetPreviewScreen(store: store)));
             }
           case _DemoAction.reset:
             await store.resetAll();
@@ -599,12 +645,12 @@ class _DemoMenu extends StatelessWidget {
             );
         }
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
-        PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面（Android）')),
-        PopupMenuItem(value: _DemoAction.widgetPreview, child: Text('iOS 桌面小工具預覽（Demo）')),
-        PopupMenuItem(value: _DemoAction.reset, child: Text('清除資料，重新開始教學')),
-        PopupMenuItem(value: _DemoAction.licenses, child: Text('授權資訊')),
+      itemBuilder: (_) => [
+        if (!store.isCloud) const PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
+        const PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面（Android）')),
+        const PopupMenuItem(value: _DemoAction.widgetPreview, child: Text('iOS 桌面小工具預覽（Demo）')),
+        if (!store.isCloud) const PopupMenuItem(value: _DemoAction.reset, child: Text('清除本機資料，重新開始教學')),
+        const PopupMenuItem(value: _DemoAction.licenses, child: Text('授權資訊')),
       ],
     );
   }

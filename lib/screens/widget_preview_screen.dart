@@ -19,7 +19,9 @@ class WidgetPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('iOS 桌面小工具（預覽）', style: TextStyle(fontWeight: FontWeight.w900))),
+      appBar: AppBar(
+        title: const Text('iOS 桌面小工具（預覽）', style: TextStyle(fontWeight: FontWeight.w900)),
+      ),
       body: ListenableBuilder(
         listenable: store,
         builder: (context, _) {
@@ -109,7 +111,11 @@ class _OmiWidget extends StatelessWidget {
       ChallengePhase.ongoing => 'DAY ${challenge.dayNumber(today)}/${challenge.totalDays}',
       ChallengePhase.finished => 'CLEAR!',
     };
-    final cheersText = complete ? '🎉 $cheers 人幫你慶祝' : '📣 $cheers 人幫你加油';
+    final cheersText = cheers == 0
+        ? '紀錄保存在這台裝置'
+        : complete
+        ? '🎉 $cheers 人幫你慶祝'
+        : '📣 $cheers 人幫你加油';
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(22 * scale),
@@ -160,11 +166,7 @@ class _OmiWidget extends StatelessWidget {
                                       child: Padding(
                                         padding: EdgeInsets.all(2 * scale),
                                         child: row * columns + col < keys.length
-                                            ? _WidgetKey(
-                                                store: store,
-                                                item: keys[row * columns + col],
-                                                scale: scale,
-                                              )
+                                            ? _WidgetKey(store: store, item: keys[row * columns + col], scale: scale)
                                             : const SizedBox.shrink(),
                                       ),
                                     ),
@@ -177,9 +179,9 @@ class _OmiWidget extends StatelessWidget {
             ),
             if (ongoing)
               GestureDetector(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => DailyRecordScreen(store: store)),
-                ),
+                onTap: () =>
+                    Navigator.of(context)
+                        .push(MaterialPageRoute<void>(builder: (_) => DailyRecordScreen(store: store))),
                 child: Container(
                   color: PixelColors.ink,
                   padding: EdgeInsets.fromLTRB(8 * scale, 4 * scale, 8 * scale, 3 * scale),
@@ -329,10 +331,7 @@ class _FakeIcon extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(size * 0.22),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(size * 0.22)),
     );
   }
 }

@@ -134,7 +134,9 @@ void main() {
 
       SharedPreferences.setMockInitialValues({});
       final later = await ChallengeStore.load(clock: () => DateTime(2026, 10, 9, 9));
-      await later.finishSetup(Profile(name: 'B', startDate: DateTime(2026, 10, 12), nourishChoice: {'produce', 'water'}));
+      await later.finishSetup(
+        Profile(name: 'B', startDate: DateTime(2026, 10, 12), nourishChoice: {'produce', 'water'}),
+      );
       expect(later.phase, ChallengePhase.notStarted);
       expect(later.startLocked, isFalse);
       expect(later.challenge.totalDays, 81);
@@ -161,19 +163,19 @@ void main() {
       expect(find.text('～ 快樂的 Σίσυφος ～'), findsOneWidget);
       await tester.tap(find.text('開始挑戰'));
       await tester.pumpAndSettle();
-      expect(_pixelText('STEP 1/10'), findsOneWidget);
+      expect(_pixelText('STEP 1/11'), findsOneWidget);
       expect(_pixelText('84 DAYS'), findsOneWidget);
 
       await _tapText(tester, '下一步');
       // 沒填名字不能往下走。
       await _tapText(tester, '下一步');
-      expect(_pixelText('STEP 2/10'), findsOneWidget);
+      expect(_pixelText('STEP 2/11'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '阿明');
       await tester.pumpAndSettle();
       await _tapText(tester, '下一步');
 
       // 決定加入：預設從今天開始，也可以選下週一。
-      expect(_pixelText('STEP 3/10'), findsOneWidget);
+      expect(_pixelText('STEP 3/11'), findsOneWidget);
       expect(find.text('從今天開始'), findsOneWidget);
       expect(find.text('從下週一開始'), findsOneWidget);
       await _tapText(tester, '下一步');
@@ -184,9 +186,9 @@ void main() {
       await _tapText(tester, '下一步');
 
       // NOURISH：三選至少二；選了飲水要填體重，兩個目標都會算出來。
-      expect(_pixelText('STEP 5/10'), findsOneWidget);
+      expect(_pixelText('STEP 5/11'), findsOneWidget);
       await _tapText(tester, '下一步');
-      expect(_pixelText('STEP 5/10'), findsOneWidget);
+      expect(_pixelText('STEP 5/11'), findsOneWidget);
       await _tapText(tester, '蔬果');
       await _tapText(tester, '飲水');
       await tester.enterText(find.widgetWithText(TextField, '你的體重'), '60');
@@ -201,14 +203,19 @@ void main() {
       // RECOVER
       await _tapText(tester, '下一步');
       // REFLECT：點例子就填進去。
-      expect(_pixelText('STEP 8/10'), findsOneWidget);
+      expect(_pixelText('STEP 8/11'), findsOneWidget);
       await _tapText(tester, '今天忘記閱讀');
       await _tapText(tester, '下一步');
       // WEEK 1 計畫
-      expect(_pixelText('STEP 9/10'), findsOneWidget);
+      expect(_pixelText('STEP 9/11'), findsOneWidget);
       await tester.enterText(find.byType(TextField).first, '一三五晨跑');
       await _tapText(tester, '下一步');
-      await _tapText(tester, '進入我的儀表板');
+      expect(find.text('使用 Discord 登入'), findsNothing);
+      await _tapText(tester, '下一步');
+      expect(_pixelText('STEP 11/11'), findsOneWidget);
+      expect(find.text('使用 Discord 登入'), findsOneWidget);
+      expect(store.isSetUp, isFalse);
+      await _tapText(tester, '先在本機使用');
 
       expect(store.isSetUp, isTrue);
       expect(store.profile.name, '阿明');
@@ -274,24 +281,39 @@ void main() {
       expect(find.text('🔍 回顧 3/3 題'), findsOneWidget);
     });
 
-    testWidgets('在隊友卡片上集氣加油或慶祝', (tester) async {
+    testWidgets('本機模式能打卡但沒有其他玩家或示範加油，首頁可再登入', (tester) async {
       final store = await ChallengeStore.load(clock: () => DateTime(2026, 11, 7, 9));
       await store.finishSetup(_profile);
       await tester.pumpWidget(OmiApp(store: store));
       await tester.pumpAndSettle();
 
-      final before = store.cheersFor('an');
-      final cheer = find.byWidgetPredicate((w) => w is Text && (w.data == '📣 集氣加油' || w.data == '🎉 慶祝'));
-      await _scrollTo(tester, cheer);
-      await tester.tap(cheer.hitTestable().first);
+      expect(store.players.map((p) => p.id), ['me']);
+      expect(store.playerById('an'), isNull);
+      expect(store.cheersFor('me'), 0);
+      await store.cheer('an');
+      expect(store.hasCheered('an'), isFalse);
+      await _scrollTo(tester, find.text('紀錄保存在這台裝置'));
+      expect(find.text('大家的進度'), findsNothing);
+      expect(find.text('📣 集氣加油'), findsNothing);
+      await tester.tap(find.byTooltip('帳號與資料'));
       await tester.pumpAndSettle();
+      expect(find.text('使用 Discord 登入'), findsOneWidget);
+      expect(store.isSetUp, isTrue);
+    });
 
-      expect(store.hasCheered('an'), isTrue);
-      expect(store.cheersFor('an'), before + 1);
-      expect(find.textContaining('你幫 小安'), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 5));
+    testWidgets('OAuth 跳轉後重開仍保留教學設定與心得，回到登入最後一步', (tester) async {
+      final store = await ChallengeStore.load(clock: () => DateTime(2026, 10, 9));
+      await store.saveSetupDraft(_profile, '今天先走一小步');
+      final reloaded = await ChallengeStore.load(clock: () => DateTime(2026, 10, 9));
+      await tester.pumpWidget(OmiApp(store: reloaded));
       await tester.pumpAndSettle();
+      expect(_pixelText('STEP 11/11'), findsOneWidget);
+      expect(reloaded.profile.name, '阿明');
+      expect(reloaded.profile.nourishChoice, {'produce', 'water'});
+      await _tapText(tester, '先在本機使用');
+      expect(reloaded.entryOn(itemById('noticed'), reloaded.today).notes, ['今天先走一小步']);
+      expect(reloaded.pendingAccountStep, isFalse);
+      expect(reloaded.setupNoticedDraft, isEmpty);
     });
   });
 }

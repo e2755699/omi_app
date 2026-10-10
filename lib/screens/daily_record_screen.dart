@@ -30,12 +30,14 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
 
   late DateTime _date = widget.store.today;
   final _noticedText = TextEditingController();
+  late final String _scope;
 
   ChallengeStore get _store => widget.store;
 
   @override
   void initState() {
     super.initState();
+    _scope = _store.dataScope;
     _loadNotes();
   }
 
@@ -51,6 +53,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   }
 
   Future<void> _saveNotes() async {
+    if (_scope != _store.dataScope) return;
     // 先把字讀出來：離開畫面時 controller 可能接著就被 dispose 了。
     final date = _date;
     final noticed = [_noticedText.text];
