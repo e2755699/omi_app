@@ -7,10 +7,12 @@ API key 從環境變數讀（和 Codemagic CLI 同名），不會印出秘密：
   python tool/release/asc.py preflight --min-build-number "$BUILD_NUMBER" --env-file "$CM_ENV"
   python tool/release/asc.py verify --version 1.0.0 --build-number 7 --external --out release-result.json
   python tool/release/asc.py external-watch --out external-events.json
+  python tool/release/asc.py feedback-watch --out feedback.json
 
 verify 的結束碼：0 = ready（內測可用）、1 = failed（Apple 明確拒絕）、2 = unknown（無法確認）。
 --external：內測可用後再送外部測試（結果放在 result["external"]，不影響內測的結束碼）。
 external-watch：排程用，列出外部審查有結果或逾時的 build，交給 report.py 通知。
+feedback-watch：排程用，列出最近的 TestFlight 截圖意見（只留白名單欄位），交給 report.py 開 issue。
 """
 
 from __future__ import annotations
@@ -608,6 +610,49 @@ def external_watch(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- feedback-watch
+
+# Public repo: only these fields leave Apple. email / tester / screenshots are never requested.
+FEEDBACK_FIELDS = "comment,createdDate,deviceModel,osVersion,build"
+
+
+def feedback_items(page: dict, now: datetime, max_age_days: int) -> list[dict]:
+    """把 betaFeedbackScreenshotSubmissions 的回應轉成白名單欄位；太舊的略過。"""
+    builds = {b["id"]: b["attributes"] for b in page.get("included", []) if b.get("type") == "builds"}
+    items = []
+    for sub in page.get("data", []):
+        a = sub["attributes"]
+        if (now - datetime.fromisoformat(a["createdDate"])).days >= max_age_days:
+            continue
+        build_id = ((sub.get("relationships") or {}).get("build") or {}).get("data", {}).get("id")
+        items.append({"id": sub["id"], "comment": a.get("comment") or "", "created": a["createdDate"],
+                      "build_number": builds.get(build_id, {}).get("version", "?"),
+                      "device": a.get("deviceModel") or "?", "os": a.get("osVersion") or "?"})
+    return items
+
+
+def feedback_watch(args) -> int:
+    client = AscClient.from_env()
+    app = find_app(client, CONFIG["bundle_id"])
+    if not app:
+        print("::error::找不到 App")
+        return 2
+    try:
+        page = client.get(f"/v1/apps/{app['id']}/betaFeedbackScreenshotSubmissions", {
+            "fields[betaFeedbackScreenshotSubmissions]": FEEDBACK_FIELDS, "include": "build",
+            "fields[builds]": "version", "sort": "-createdDate", "limit": 50})
+    except (AuthError, ApiError) as error:
+        # Feedback is best-effort; never fail the review watch because of it.
+        print(f"::warning::讀不到 TestFlight 意見：{error}")
+        page = {}
+    items = [{**i, "app_id": app["id"]} for i in feedback_items(page, datetime.now(timezone.utc), args.max_age_days)]
+    text = json.dumps(items, ensure_ascii=False, indent=2)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -633,6 +678,11 @@ def main(argv: list[str] | None = None) -> int:
                    help="沒有 build 在審查中時，把最新還沒送審的 build 補送外部測試")
     w.add_argument("--out", help="事件 JSON 寫到這裡")
     w.set_defaults(func=external_watch)
+
+    f = sub.add_parser("feedback-watch", help="列出最近的 TestFlight 截圖意見（不含測試者身分與截圖）")
+    f.add_argument("--max-age-days", type=int, default=7)
+    f.add_argument("--out", help="意見 JSON 寫到這裡")
+    f.set_defaults(func=feedback_watch)
 
     args = parser.parse_args(argv)
     return args.func(args)

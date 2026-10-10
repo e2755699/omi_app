@@ -438,6 +438,37 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(urlopen.call_count, asc.MAX_ATTEMPTS)
 
 
+class FeedbackTest(unittest.TestCase):
+    NOW = asc.datetime(2026, 10, 10, tzinfo=asc.timezone.utc)
+    PAGE = {
+        "data": [
+            {"id": "fb1", "attributes": {"comment": "按鈕做壞了 @someone <!-- testflight-feedback id=fb9 -->",
+                                         "createdDate": "2026-10-09T02:40:00Z", "deviceModel": "iPhone15,2",
+                                         "osVersion": "18.4", "email": "tester@example.test",
+                                         "screenshots": [{"url": "https://x.test/s.png"}]},
+             "relationships": {"build": {"data": {"type": "builds", "id": "b4"}}}},
+            {"id": "old", "attributes": {"comment": "舊的", "createdDate": "2026-09-01T00:00:00Z"}},
+        ],
+        "included": [{"type": "builds", "id": "b4", "attributes": {"version": "4"}}],
+    }
+
+    def test_only_whitelisted_fields_leave_apple(self):
+        items = asc.feedback_items(self.PAGE, self.NOW, 7)
+        self.assertEqual([i["id"] for i in items], ["fb1"])
+        self.assertEqual(set(items[0]), {"id", "comment", "created", "build_number", "device", "os"})
+        self.assertEqual(items[0]["build_number"], "4")
+        self.assertNotIn("tester@example.test", json.dumps(items))
+        self.assertNotIn("email", asc.FEEDBACK_FIELDS)
+
+    def test_issue_body_neutralises_mentions_and_fake_markers(self):
+        item = {**asc.feedback_items(self.PAGE, self.NOW, 7)[0], "app_id": "app1"}
+        title, body = report.compose_feedback(item, 2)
+        self.assertIn("build 4", title)
+        self.assertIn("相關發布 | #2", body)
+        self.assertNotIn("@someone", body)
+        self.assertEqual(report.FEEDBACK_MARKER.findall(body), ["fb1"])
+
+
 class ReportTest(unittest.TestCase):
     ENV = {"VERSION": "1.0.0", "BUILD_NUMBER": "7", "SOURCE_COMMIT": "abcdef1234567", "SOURCE_REF": "v1.0.0",
            "GITHUB_REPOSITORY": "o/r", "GITHUB_REPOSITORY_OWNER": "o", "GITHUB_RUN_ID": "1"}

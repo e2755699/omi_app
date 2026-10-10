@@ -45,7 +45,7 @@ C 槽空間不多（約 6–7 GB），不要隨意安裝大型工具或留下大
 - **網頁版**：push `master` → `.github/workflows/pages.yml` 自動部署到 GitHub Pages。
 - **iOS 只改 Dart**：打 tag `patch-<數字>` → Codemagic `ios-patch` → Shorebird patch。
 - **iOS 動到原生程式、資源檔或 Info.plist**：改 `pubspec.yaml` 版本，打 tag `v<版本>` → Codemagic `ios-testflight`（Shorebird release）→ TestFlight 內測，並自動送外部測試。
-- 每次結果都由 `.github/workflows/ios-release-report.yml` 用 App Store Connect API 查驗，再留言在 issue「📦 iOS 發布通知」。外部 Beta 審查結果由每小時的 `testflight-external-watch.yml` 通知。
+- 每次結果都由 `.github/workflows/ios-release-report.yml` 用 App Store Connect API 查驗，再留言在 issue「📦 iOS 發布通知」。外部 Beta 審查結果由每小時的 `testflight-external-watch.yml` 通知；同一個排程也把 TestFlight 截圖意見各開成 issue（label `testflight-feedback`，不含測試者 email 與截圖）。
 - 非秘密設定在 `tool/release/config.json`。秘密只放在 Codemagic／GitHub 的 secret store，由擁有者執行 `tool/release/setup_secrets.py` 放入。
 - CI／發布相關工作照擁有者的 Codex skill 做：`C:\Users\USER\.codex\skills\automate-release-ci\`，包括驗收矩陣與證據要寫回 `docs/release/ios-release.md`。
 - **不會**自動送 App Store 正式審查或公開上架；那一步一定要擁有者確認。
