@@ -1,0 +1,32 @@
+{
+  "bundle_id": "com.jacklope.omiApp",
+  "version": "1.2.0",
+  "build_number": "4",
+  "beta_group": "Omi Internal",
+  "app_id": "6819375327",
+  "external": {
+    "group_id": "ff0678a9-279f-4b95-88c5-1bfe6dc62743",
+    "submitted": true,
+    "status": "submitted",
+    "state": "WAITING_FOR_BETA_REVIEW"
+  },
+  "status": "ready",
+  "phase": "testflight",
+  "reason": "in_beta_testing",
+  "details": {
+    "build_id": "b0c265f0-59ac-4451-bb24-17f68ffd3f3d",
+    "processingState": "VALID",
+    "expired": false,
+    "internalBuildState": "IN_BETA_TESTING",
+    "in_group": true
+  },
+  "checked_at": "2026-10-10T02:23:35+00:00",
+  "source_commit": "e14045bbc8a50a7799fefdfa872fcf6276033bcc",
+  "source_tag": "v1.2.0",
+  "pull_request": "https://github.com/e2755699/omi_app/pull/3",
+  "codemagic_build_id": "6ac99e1859e0a0dce2773fa7",
+  "verification_run": "https://github.com/e2755699/omi_app/actions/runs/38016640310",
+  "notification_url": "https://github.com/e2755699/omi_app/issues/1#issuecomment-6092687591",
+  "ipa_bytes": 27007440,
+  "ipa_sha256": "592bd3c97acda3ed43cc3d7f1ad46f662370472bbd64f711c7d770cc76861680"
+}

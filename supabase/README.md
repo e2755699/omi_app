@@ -54,3 +54,5 @@ Discord OAuth 回呼：`https://iprkeejfleqyrqvliqya.supabase.co/auth/v1/callbac
 Supabase 已保存的 redirect allow list：手機 `omiapp://auth-callback`、本機 `http://127.0.0.1:5173/`；開發 Site URL 為後者。`https://e2755699.github.io/omi_app/` 尚未加入 allow list，公開雲端部署前另行配置。
 
 詳細範圍、隱私與同步設計見 [後端規劃](../docs/backend/supabase-plan.md)。
+
+TestFlight 1.2.0 起，Codemagic 完整 release 與 patch 使用同一份公開開發設定。Pages 仍維持本機模式。版本／Apple 查驗結果見 [iOS 發布](../docs/release/ios-release.md)；未完成項目見 [TODO](../TODO.md)。
