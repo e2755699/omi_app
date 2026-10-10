@@ -216,7 +216,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text(store.isCloud ? '群組已連接' : '紀錄保存在這台裝置', style: TextStyle(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
-                  Text(store.isCloud ? '可從帳號與資料更新隊友、查看同步狀態。' : '想和夥伴一起時，再登入加入群組。'),
+                  Text(store.isCloud ? '可從帳號與資料更新隊友、看紀錄有沒有同步到帳號。' : '想和夥伴一起時，再登入加入群組。'),
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -649,7 +649,7 @@ class _DemoMenu extends StatelessWidget {
         if (!store.isCloud) const PopupMenuItem(value: _DemoAction.previewDate, child: Text('換一天看看（Demo 日期）')),
         const PopupMenuItem(value: _DemoAction.addWidget, child: Text('把小工具加到桌面（Android）')),
         const PopupMenuItem(value: _DemoAction.widgetPreview, child: Text('iOS 桌面小工具預覽（Demo）')),
-        if (!store.isCloud) const PopupMenuItem(value: _DemoAction.reset, child: Text('清除本機資料，重新開始教學')),
+        if (!store.isCloud) const PopupMenuItem(value: _DemoAction.reset, child: Text('清除這台裝置的資料，重新開始教學')),
         const PopupMenuItem(value: _DemoAction.licenses, child: Text('授權資訊')),
       ],
     );
