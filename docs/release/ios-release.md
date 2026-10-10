@@ -3,7 +3,7 @@
 > 狀態（2026-10-10）：**1.2.0 (4) 已由 Apple API 確認內測可用，外部測試已送 Beta 審查**。PR #3 已合併 master；`v1.2.0` → Codemagic → GitHub 查驗 → issue 通知全程自動完成。本版包含可選的 Discord／Supabase 群組同步；真機登入、雙裝置及雲端 Widget 背景互動仍未驗收／未完成。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
-> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成，沒有觸發 iOS 發布；詳見 [後端規劃](../backend/supabase-plan.md)。
+> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成；本輪已完整發布 1.2.0 (4)，詳見 [後端規劃](../backend/supabase-plan.md)。
 
 ## 1.2.0 發布追蹤（2026-10-10）
 
