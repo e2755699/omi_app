@@ -1,5 +1,17 @@
 # omi_app TODO
 
+## 本輪合併與發布（2026-10-10）
+
+- [x] 完成／已驗證／未完成清單更新；PR #3 已合併 master（e14045b）
+- [x] TestFlight 1.2.0 (4)：Codemagic 全自動建置、雙 target 簽章與 Apple 上傳成功
+- [x] Apple API 確認 VALID、未過期、IN_BETA_TESTING、已在 Omi Internal
+- [x] TestFlight 文字／公開隱私政策／iOS manifest 更新；公開 Pages 部署成功
+- [x] iOS 發布通知 issue 已留言；本機 Android 1.2.0 (4) APK 已產出
+- [ ] 1.2.0 外部 Beta 審查通過（目前 WAITING_FOR_BETA_REVIEW；既有排程持續查驗）
+- [ ] 擁有者確認通知信收件及真機安裝
+
+證據：[iOS 發布紀錄](docs/release/ios-release.md)、[Apple 查驗 JSON](docs/release/evidence/1.2.0-4.json)。
+
 ## Supabase 後端（2026-10-10）
 
 - [x] 擁有者選定 Supabase 與 Discord 登入；確認使用 `e2755699's Org`

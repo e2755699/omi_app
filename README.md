@@ -7,7 +7,7 @@ The Omi Challenge（84 天刻意生活）的打卡 App。薛西弗斯每天把�
 > 目前是 **開發／測試版**：可不登入使用，訪客紀錄只存在裝置上，也看不到其他玩家。Discord 已啟用，Chrome 真實登入、群組建立、打卡／私人心得同步及照片上傳已驗證；手機與雙裝置驗收仍待完成。預設建置仍是本機模式，TestFlight 1.2.0 與帶開發設定的 APK 可連雲端。詳見 [後端規劃](docs/backend/supabase-plan.md)。
 
 - **網頁版 Demo**：https://e2755699.github.io/omi_app/ （每次 push `master` 自動更新）
-- **iOS**：TestFlight 測試中（內測已開放，外部測試送審中）
+- **iOS**：TestFlight **1.2.0 (4)** 內測已可用，外部 Beta 審查中（[查驗紀錄](docs/release/ios-release.md)）
 - **Android**：[APK 下載頁](https://e2755699.github.io/omi_app/download/)；社群測試版，Google Play 尚未上架
 - **挑戰期間**：主辦第一輪 2026-10-09 → 2026-12-31（84 天）。App 裡每個人從開始用的那天算 Day 1（教學可選今天或下週一），結束固定 12/31。規則與 FAQ：[The Omi Challenge Wiki](https://app.notion.com/p/The-Omi-Challenge-Wiki-3bb548081c1880f18874fce64262ecb5)；需求整理：[docs/PRD.md](docs/PRD.md)
 
@@ -49,7 +49,7 @@ flutter run
 lib/
   main.dart / app.dart     進入點、主題、路由
   models/                  挑戰、規則（The Rules）、進度、打卡紀錄
-  data/                    ChallengeStore（本機儲存）、示範隊友、桌面小工具橋接
+  data/                    ChallengeStore（本機儲存）、雲端同步、桌面小工具橋接
   screens/                 標題、設定教學、首頁、每日打卡、本週任務、照片牆、項目詳情、隊友、iOS 小工具預覽
   widgets/                 像素 UI 元件、鍵帽、能量槽、字型、隊友卡片
 android/                   含桌面小工具（CheerWidgetProvider.kt）

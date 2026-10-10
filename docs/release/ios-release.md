@@ -1,13 +1,18 @@
 # iOS 發布（Codemagic → TestFlight 內測＋外部測試）
 
-> 狀態（2026-10-10）：**1.1.0 (3) 已內測可用、外部測試已送 Beta 審查**（含 iOS 桌面小工具）。這次是第一次「推 tag → Codemagic → GitHub Actions 查驗 → issue 留言」全程自動成功；webhook 已由擁有者建立。1.0.0 (2) 的外部測試已通過。細節見「驗收矩陣」。
+> 狀態（2026-10-10）：**1.2.0 (4) 已由 Apple API 確認內測可用，外部測試已送 Beta 審查**。PR #3 已合併 master；`v1.2.0` → Codemagic → GitHub 查驗 → issue 通知全程自動完成。本版包含可選的 Discord／Supabase 群組同步；真機登入、雙裝置及雲端 Widget 背景互動仍未驗收／未完成。
 > 商店資料、TestFlight 測試資訊與正式送審準備見 [app-store-listing.md](app-store-listing.md)。
 
-> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成，沒有觸發 iOS 發布；詳見 [後端規劃](../backend/supabase-plan.md)。
+> 2026-10-10 開發分支 `codex/supabase-backend`：加入 Supabase、SQLite 與 OAuth 原生回呼設定，後續必須走完整原生 release，不能只發 Shorebird patch。已產生連接開發雲端的 APK；Chrome 真實 Discord 登入、群組建立、打卡／私人心得同步及照片上傳已通過，37 項 Flutter 測試與 analyze 通過。手機與雙裝置驗收尚待完成；本輪已完整發布 1.2.0 (4)，詳見 [後端規劃](../backend/supabase-plan.md)。
 
 ## 1.2.0 發布追蹤（2026-10-10）
 
-- 擁有者已授權 PR 合併 master 與最新 TestFlight；目前準備 `v1.2.0` 完整發布，成功證據待 CI／Apple 回報後補。
+- [PR #3](https://github.com/e2755699/omi_app/pull/3) 已於 2026-10-10T02:08:12Z 合併 master；release commit `e14045bbc8a50a7799fefdfa872fcf6276033bcc`，tag `v1.2.0`。
+- GitHub webhook 自動觸發 [Codemagic build #4](https://codemagic.io/app/6ac3e6dec18dba32d6229cd5/build/6ac99e1859e0a0dce2773fa7)。真實 CI 預檢通過，Apple 配號 **1.2.0 (4)**，TestFlight 描述／隱私 URL／審查備註已同步更新。建置／簽章／上傳已成功，耗時 9m39s；自動查驗 [Actions run 38016640310](https://github.com/e2755699/omi_app/actions/runs/38016640310) 成功完成。
+- IPA 27,007,440 bytes，SHA-256 `592bd3c97acda3ed43cc3d7f1ad46f662370472bbd64f711c7d770cc76861680`；Apple delivery UUID `b0c265f0-59ac-4451-bb24-17f68ffd3f3d`。Shorebird 已發布基底 `1.2.0+4`，上傳不等同 TestFlight 內測可用，Apple 已於 2026-10-10T02:23:35Z（台北 10:23）確認內測可用。
+- Apple build `b0c265f0-59ac-4451-bb24-17f68ffd3f3d`：`processingState=VALID`、`expired=false`、`internalBuildState=IN_BETA_TESTING`、`in_group=true`（Omi Internal）。外部「Omi 夥伴」為 `WAITING_FOR_BETA_REVIEW`，尚未宣稱外測可用。
+- [機器可讀證據](evidence/1.2.0-4.json)；[自動通知留言](https://github.com/e2755699/omi_app/issues/1#issuecomment-6092687591) 已送出，信箱收件未確認。
+- [Pages run 38015847383](https://github.com/e2755699/omi_app/actions/runs/38015847383) 成功；公開 `/privacy/` 與 `/download/` 回應 HTTP 200，雲端隱私文字已上線。
 - 完整發布原因：新增 Supabase／SQLite 原生依賴及 OAuth deep link；不能使用舊基底的 Dart patch。
 - `ios-testflight` 與 `ios-patch` 都傳入 `-- --dart-define-from-file=config/supabase.dev.json`，目標為現有 `omi-app-dev`。此檔只含公開 URL／publishable key，不含服務端秘密；Pages 保持本機模式。
 - 依 [Shorebird release](https://docs.shorebird.dev/code-push/release/)／[patch](https://docs.shorebird.dev/code-push/patch/) 官方文件透過 `--` 傳遞 Flutter 建置參數。
@@ -193,7 +198,7 @@ Shorebird 那一項會順便：沒有「Omi」這個 Shorebird App 就建立，�
 | Shorebird patch → 通知 | 已配置；patch 輸出擷取與通知文字模擬通過，**未實跑** | `test_patch_*`、本機模擬 patch log |
 | build 取消／逾時 | **不支援** | — |
 
-待補：擁有者確認收到通知信；1.1.0 的 Beta 審查結果與外部通知；真機上小工具與選照片的驗收。
+待補：擁有者確認收到通知信；最新 1.2.0 的 Beta 審查結果與外部通知；真機登入、雙裝置、小工具與照片驗收。
 
 ## Android 下載入口
 

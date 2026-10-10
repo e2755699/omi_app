@@ -81,7 +81,7 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 3. 同步：飛航模式打卡、重試、同時兩裝置修改、取消打卡、舊資料匯入、切帳號隔離。
 4. 照片：上傳、中斷重試、換照片、刪除、跨組與離組讀取拒絕，孤兒檔清理。
 5. 小工具：App 關閉時打卡、重新開啟同步、登出後停用；iOS 真機與 Android 驗證。
-6. 上線：更新現有「不連網、不收集資料」的隱私文字與商店資料，完成帳號刪除與資料刪除流程。
+6. 上線：隱私政策／manifest／TestFlight 文字已更新；正式商店資料收集標籤、帳號與資料刪除流程仍待完成。
 
 ## 部署紀錄
 
@@ -99,7 +99,7 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 - 照片上傳實測通過：擁有者開啟 Chrome 外掛檔案存取後，用 `web/icons/Icon-192.png` 測試。修正 Web 上 `1 << 32` 溢位為 0、造成照片檔名亂數產生失敗；改用數值常數 `0x100000000`。App 上傳成功，伺服器確認 `weekly_photos` version 1、週期 `2026-10-05`，且私人 Storage 對應檔案存在（image/png，3,724 bytes）。重新載入 App 顯示照片完成 100%，再次進入本週任務能顯示圖示。此驗證包含本機照片快取，尚不代表另一裝置已能下載照片。
 - 實測修正：一般 Web 啟動不再誤當 OAuth 回呼；返回網址完全移除 query／fragment，避免多出 `?#` 與精確 allow list 不符。
 - Chrome 登出／再次登入：登出後回到本機 0/7 進度；以相同已核准權限再次登入，實際 OAuth request 的返回網址不再帶 `?#`，回到原群組 2/7 進度。
-- 尚待驗證／補齊：Android／iOS 登入、照片跨裝置下載／中斷重試／更換移除、雙裝置同步、iOS 原生建置、雲端小工具打卡、照片清理、帳號刪除。雲端隱私政策／manifest 已更新；本輪經擁有者授權準備合併 master 與 TestFlight 1.2.0，發布實況見 `docs/release/ios-release.md`。
+- 尚待驗證／補齊：Android／iOS 登入、照片跨裝置下載／中斷重試／更換移除、雙裝置同步、雲端小工具打卡、照片清理、帳號刪除。雲端隱私政策／manifest 已更新；本輪經擁有者授權，PR #3 已合併 master（e14045b）；TestFlight 1.2.0 已由 tag 觸發，發布實況見 `docs/release/ios-release.md`。
 
 ### 本輪建置
 
@@ -118,3 +118,10 @@ App 只配置 Supabase URL 與 publishable key；資料庫密碼、service_role�
 - [私人 Storage bucket](https://supabase.com/docs/guides/storage/buckets/fundamentals)
 - [資料庫 migration](https://supabase.com/docs/guides/deployment/database-migrations)
 - [Realtime 的限制](https://supabase.com/docs/guides/realtime/postgres-changes)
+
+### 1.2.0 合併與交接
+
+- [PR #3](https://github.com/e2755699/omi_app/pull/3) 已於 2026-10-10 合併 master，沒有變更既有開發後端資料。
+- 原生登入與雙裝置驗收仍待完成；未完成項目逐項列於 [TODO](../../TODO.md)。
+- iOS 原生建置／App 與 Widget 簽章／Apple 上傳已在 Codemagic build #4 通過；這不等於真機登入或 Widget 功能已驗收。
+- 最新本機 APK 為 1.2.0 (4)，檔案與 SHA-256 見 [Android 發布紀錄](../release/android-release.md)。

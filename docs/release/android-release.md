@@ -22,7 +22,7 @@
 | APK SHA-256 | `3a57996c58e22a7a5b036f4a06b044ee6c22984c35dc2912254ea18ee3af724d` |
 | 公開簽章憑證 SHA-256 | `74c189f5114f8aa9ce3e457881e859ff3966258fab8016e22bdf43e2a906f4f7` |
 
-目前 master 的隊友仍為示範資料，打卡與照片保存在裝置上；未包含另一分支尚未合併的後端。
+此公開的 1.1.0 (2) APK 使用示範隊友，打卡與照片保存在裝置上，沒有後端。2026-10-10 PR #3 已將後端合併 master；新版 1.2.0 (4) 雲端 APK 僅本機打包，尚未取代公開下載附件。
 
 ## 日常更新
 
@@ -54,8 +54,16 @@
 | 雲端附件與 SHA-256 | 真實實跑通過；Release ID `408496127`，APK asset ID `626685527`，GitHub API digest 與未登入重新下載的 SHA-256 均與本機一致 |
 | 公開 Release | [android-v1.1.0-2](https://github.com/e2755699/omi_app/releases/tag/android-v1.1.0-2)，標為 prerelease；tag 指向上述來源 commit |
 | Flutter web 打包 | 本機 release build 通過，下載頁包含於 `build/web/download/index.html` |
-| Pages 正式部署與公開下載頁 | 待 master 合併與部署 |
+| Pages 正式部署與公開下載頁 | PR #2 已合併，Pages run 38014232679 成功（2026-10-10） |
 | Android 真機乾淨安裝、覆蓋安裝、保留資料 | 未驗；簽章一致不代表已完成真機驗收 |
 | APK 無人值守發布與通知 | 未實作；本次不新增通知管道 |
 
 Pages 仍用現有標準 GitHub Actions runner；APK 本次在本機打包，未新增雲端服務或付費 runner。未做整體帳戶費用保證。
+
+### 1.2.0 本機雲端測試 APK（2026-10-10）
+
+- 來源：PR #3（commit c32643b；合併 commit e14045b），`version: 1.2.0+4`。
+- `flutter build apk --release --dart-define-from-file=config/supabase.dev.json` 成功；64,478,910 bytes。
+- SHA-256：`90C535A1834F7277F7532335CFFA57B18EDE9805578F646A193A4C7D4285074A`。
+- 檔案：`build/app/outputs/flutter-apk/app-release.apk`；未上傳 GitHub Release，公開下載頁仍是 1.1.0 (2)。
+- Flutter analyze 0 issue、37 項 Flutter 測試通過；手機真機與雙裝置仍未驗。
